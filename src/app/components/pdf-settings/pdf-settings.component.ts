@@ -9,11 +9,6 @@ import { BingoStateService } from '../../services/bingo-state.service';
   template: `
     <form [formGroup]="form" class="row g-3 mb-2">
       <div class="col-12 col-sm-6">
-        <label for="pdfTitle" class="form-label">Título del bingo</label>
-        <input id="pdfTitle" type="text" class="form-control" formControlName="title" />
-      </div>
-
-      <div class="col-12 col-sm-6">
         <fieldset>
           <legend class="form-label col-form-label pt-0">Orientación</legend>
           <div class="form-check form-check-inline">
@@ -70,7 +65,6 @@ export class PdfSettingsComponent {
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly form = this.fb.nonNullable.group({
-    title: this.state.pdfSettings().title,
     orientation: this.state.pdfSettings().orientation,
     showCardNumber: this.state.pdfSettings().showCardNumber,
     showSongTitles: this.state.pdfSettings().showSongTitles,
@@ -81,7 +75,6 @@ export class PdfSettingsComponent {
       this.state.pdfSettings.set({
         format: 'A4',
         cardsPerPage: 'auto',
-        title: value.title ?? 'BINGO MUSICAL',
         orientation: value.orientation ?? 'auto',
         showCardNumber: !!value.showCardNumber,
         showSongTitles: !!value.showSongTitles,

@@ -24,6 +24,9 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Set Spotify Client ID
+        run: |
+          echo "export const SPOTIFY_CLIENT_ID = '${{ vars.SPOTIFY_CLIENT_ID }}';" > src/app/spotify-client-id.ts
       - run: npx ng build --configuration production --base-href /bingo-musical/
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -1,10 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { BingoStateService } from './services/bingo-state.service';
 import { BingoGeneratorService } from './services/bingo-generator.service';
 import { BingoValidationService } from './services/bingo-validation.service';
 import { PdfGeneratorService } from './services/pdf-generator.service';
 import { CsvUploaderComponent } from './components/csv-uploader/csv-uploader.component';
 import { CsvPreviewComponent } from './components/csv-preview/csv-preview.component';
+import { SpotifyImporterComponent } from './components/spotify-importer/spotify-importer.component';
 import { BingoSettingsComponent } from './components/bingo-settings/bingo-settings.component';
 import { BingoCardGridComponent } from './components/bingo-card-grid/bingo-card-grid.component';
 import { GenerationProgressComponent } from './components/generation-progress/generation-progress.component';
@@ -16,6 +17,7 @@ import { PdfSettingsComponent } from './components/pdf-settings/pdf-settings.com
   imports: [
     CsvUploaderComponent,
     CsvPreviewComponent,
+    SpotifyImporterComponent,
     BingoSettingsComponent,
     BingoCardGridComponent,
     GenerationProgressComponent,
@@ -26,7 +28,7 @@ import { PdfSettingsComponent } from './components/pdf-settings/pdf-settings.com
       <h1 class="h3 mb-1">🎵 Bingo Musical</h1>
       <p class="mb-1">Generador de cartones para imprimir</p>
       <p class="small mb-0 opacity-75">
-        🔒 Tus datos se procesan localmente en tu navegador. El CSV no se sube a ningún servidor.
+        🔒 Tus datos se procesan localmente en tu navegador. Nada se sube a ningún servidor propio.
       </p>
     </header>
 
@@ -36,7 +38,33 @@ import { PdfSettingsComponent } from './components/pdf-settings/pdf-settings.com
           <section class="card shadow-sm h-100">
             <div class="card-body">
               <h2 class="h5 card-title">1. Cargar canciones</h2>
-              <app-csv-uploader />
+              <div class="btn-group mb-3" role="group" aria-label="Fuente de canciones">
+                <input
+                  id="sourceCsv"
+                  type="radio"
+                  class="btn-check"
+                  name="source"
+                  [checked]="source() === 'csv'"
+                  (change)="source.set('csv')"
+                />
+                <label class="btn btn-outline-primary btn-sm" for="sourceCsv">Archivo CSV</label>
+
+                <input
+                  id="sourceSpotify"
+                  type="radio"
+                  class="btn-check"
+                  name="source"
+                  [checked]="source() === 'spotify'"
+                  (change)="source.set('spotify')"
+                />
+                <label class="btn btn-outline-primary btn-sm" for="sourceSpotify">Playlist de Spotify</label>
+              </div>
+
+              @if (source() === 'csv') {
+                <app-csv-uploader />
+              } @else {
+                <app-spotify-importer />
+              }
               <app-csv-preview />
             </div>
           </section>
@@ -93,6 +121,14 @@ export class App {
   private readonly generator = inject(BingoGeneratorService);
   private readonly settingsValidator = inject(BingoValidationService);
   private readonly pdfGenerator = inject(PdfGeneratorService);
+
+  // If the browser just came back from a Spotify login redirect, the query
+  // string carries ?code=... (or ?error=...); pick the Spotify tab so its
+  // component mounts and finishes the import.
+  private readonly hasSpotifyRedirect =
+    new URLSearchParams(window.location.search).has('code') ||
+    new URLSearchParams(window.location.search).has('error');
+  protected readonly source = signal<'csv' | 'spotify'>(this.hasSpotifyRedirect ? 'spotify' : 'csv');
 
   protected readonly validationErrors = computed(
     () => this.settingsValidator.validate(this.state.settings(), this.state.songs()).errors,

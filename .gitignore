@@ -42,3 +42,8 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Spotify Client ID: generated at build time from the SPOTIFY_CLIENT_ID GitHub
+# Actions variable (see .github/workflows/deploy-pages.yml). Copy
+# spotify-client-id.example.ts if you need one for local development.
+src/app/spotify-client-id.ts

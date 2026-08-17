@@ -6,7 +6,6 @@ const PAGE_MM = { portrait: { w: 210, h: 297 }, landscape: { w: 297, h: 210 } };
 const MARGIN = 10;
 const GAP = 4; // space between cards on the same page
 const HEADER_H = 8; // "CARTÓN #n" band above the grid
-const TITLE_H = 16; // page title band
 
 const ACCENT: [number, number, number] = [109, 40, 217]; // matches the app's primary color
 const HEADER_BG: [number, number, number] = [237, 233, 254];
@@ -32,20 +31,15 @@ export class PdfGeneratorService {
       settings.cardsPerPage === 'auto'
         ? layout.fitPerPage
         : Math.max(1, Math.min(settings.cardsPerPage, layout.fitPerPage));
-    const totalPages = Math.ceil(cards.length / cardsPerPage);
 
     cards.forEach((card, index) => {
       const posInPage = index % cardsPerPage;
-      if (posInPage === 0) {
-        if (index > 0) doc.addPage();
-        const pageNumber = Math.floor(index / cardsPerPage) + 1;
-        this.drawPageHeader(doc, layout.page.w, settings.title, pageNumber, totalPages);
-      }
+      if (posInPage === 0 && index > 0) doc.addPage();
 
       const col = posInPage % layout.perRow;
       const row = Math.floor(posInPage / layout.perRow);
       const x = MARGIN + col * (layout.cardW + GAP);
-      const y = MARGIN + TITLE_H + row * (layout.cardH + GAP);
+      const y = MARGIN + row * (layout.cardH + GAP);
 
       this.drawCard(doc, card, index, x, y, layout.cellW, layout.cellH, rows, columns, settings);
     });
@@ -67,7 +61,7 @@ export class PdfGeneratorService {
   private computeLayout(orientation: 'portrait' | 'landscape', rows: number, columns: number) {
     const page = PAGE_MM[orientation];
     const usableW = page.w - MARGIN * 2;
-    const usableH = page.h - MARGIN * 2 - TITLE_H;
+    const usableH = page.h - MARGIN * 2;
 
     const cellW = Math.min(30, usableW / columns);
     const cellH = Math.min(18, cellW * 0.65);
@@ -78,19 +72,6 @@ export class PdfGeneratorService {
     const perCol = Math.max(1, Math.floor((usableH + GAP) / (cardH + GAP)));
 
     return { orientation, page, cellW, cellH, cardW, cardH, perRow, perCol, fitPerPage: perRow * perCol };
-  }
-
-  private drawPageHeader(doc: jsPDF, pageWidth: number, title: string, pageNumber: number, totalPages: number): void {
-    doc.setFillColor(...ACCENT);
-    doc.rect(0, 0, pageWidth, TITLE_H, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(15);
-    doc.text(title || 'BINGO MUSICAL', pageWidth / 2, TITLE_H / 2 + 3, { align: 'center' });
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - MARGIN, TITLE_H / 2 + 2, { align: 'right' });
-    doc.setTextColor(...TEXT_DARK);
   }
 
   private drawCard(

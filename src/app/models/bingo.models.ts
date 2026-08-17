@@ -41,7 +41,6 @@ export interface PdfSettings {
   cardsPerPage: 'auto' | number;
   showCardNumber: boolean;
   showSongTitles: boolean;
-  title: string;
 }
 
 export interface GenerationProgress {

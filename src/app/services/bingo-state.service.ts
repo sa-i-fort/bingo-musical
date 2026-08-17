@@ -26,7 +26,6 @@ export class BingoStateService {
     cardsPerPage: 'auto',
     showCardNumber: true,
     showSongTitles: true,
-    title: 'BINGO MUSICAL',
   });
 
   readonly cards = signal<BingoCard[]>([]);
