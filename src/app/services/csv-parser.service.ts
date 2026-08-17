@@ -45,6 +45,7 @@ export class CsvParserService {
 
     const seenNumbers = new Set<number>();
     const duplicates = new Set<number>();
+    const seenTitles = new Set<string>();
 
     parsed.data.forEach((row, index) => {
       const rawNumber = row[detectedNumberCol]?.trim();
@@ -64,6 +65,13 @@ export class CsvParserService {
         result.errors.push({ message: `Canción vacía para el número ${number}.`, row: rowNumber });
         return;
       }
+      const titleKey = rawTitle.toLowerCase();
+      if (seenTitles.has(titleKey)) {
+        result.errors.push({ message: `Canción duplicada: "${rawTitle}".`, row: rowNumber });
+        return;
+      }
+      seenTitles.add(titleKey);
+
       if (seenNumbers.has(number)) {
         duplicates.add(number);
       }

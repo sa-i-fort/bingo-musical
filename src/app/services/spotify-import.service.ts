@@ -102,9 +102,10 @@ export class SpotifyImportService {
   private async fetchPlaylistSongs(playlistUrlOrId: string, accessToken: string): Promise<Song[]> {
     const playlistId = this.extractPlaylistId(playlistUrlOrId);
     const songs: Song[] = [];
+    const seenIds = new Set<string>();
     // ponytail: Spotify renamed /tracks -> /items (item.item.name, not item.track.name). If broken again, check with curl.
     let url: string | null =
-      `${API_BASE}/playlists/${playlistId}/items?limit=${PAGE_SIZE}&fields=next,items(item(name,artists(name)))`;
+      `${API_BASE}/playlists/${playlistId}/items?limit=${PAGE_SIZE}&fields=next,items(item(id,name,artists(name)))`;
 
     while (url) {
       const response: Response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
@@ -118,6 +119,8 @@ export class SpotifyImportService {
       for (const item of page.items ?? []) {
         const track = item.item;
         if (!track?.name) continue;
+        if (track.id && seenIds.has(track.id)) continue;
+        if (track.id) seenIds.add(track.id);
         const artists = (track.artists ?? []).map((a: { name: string }) => a.name).join(', ');
         songs.push({ number: songs.length + 1, title: artists ? `${track.name} - ${artists}` : track.name });
       }
