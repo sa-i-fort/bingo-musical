@@ -1,0 +1,47 @@
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { BingoStateService } from '../../services/bingo-state.service';
+import { BingoCardComponent } from '../bingo-card/bingo-card.component';
+
+const PAGE_SIZE = 20;
+
+@Component({
+  selector: 'app-bingo-card-grid',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [BingoCardComponent],
+  template: `
+    @if (state.cards().length > 0) {
+      <div class="grid">
+        @for (card of visible(); track card.id; let i = $index) {
+          <app-bingo-card [card]="card" [index]="i" [showTitles]="state.settings().showSongTitles" />
+        }
+      </div>
+      @if (state.cards().length > visibleCount()) {
+        <button type="button" (click)="showMore()">
+          Ver más ({{ visibleCount() }} / {{ state.cards().length }})
+        </button>
+      }
+    }
+  `,
+  styles: `
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 0.75rem;
+    }
+    button {
+      margin-top: 0.75rem;
+    }
+  `,
+})
+export class BingoCardGridComponent {
+  protected readonly state = inject(BingoStateService);
+  // ponytail: only render a page of cards in the DOM at a time; the PDF export
+  // still uses the full state.cards() list. Upgrade to a CDK virtual-scroll
+  // viewport if users routinely preview 1000+ cards on screen.
+  protected readonly visibleCount = signal(PAGE_SIZE);
+  protected readonly visible = computed(() => this.state.cards().slice(0, this.visibleCount()));
+
+  showMore(): void {
+    this.visibleCount.update((n) => n + PAGE_SIZE);
+  }
+}
