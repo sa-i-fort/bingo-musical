@@ -33,6 +33,20 @@ describe('BingoGeneratorService', () => {
     }
   });
 
+  it('sorts each column in ascending numeric order, top to bottom', async () => {
+    const settings: BingoSettings = { totalSongs: 90, rows: 3, columns: 5, numberOfCards: 5, showSongTitles: false };
+    const result = await service.generate(settings, makeSongs(90));
+
+    for (const card of result.cards) {
+      const grid = toNumberGrid(card);
+      for (let col = 0; col < settings.columns; col++) {
+        const columnValues = grid.map((row) => row[col]);
+        const sorted = [...columnValues].sort((a, b) => a - b);
+        expect(columnValues).toEqual(sorted);
+      }
+    }
+  });
+
   it('respects column ranges', async () => {
     const settings: BingoSettings = { totalSongs: 90, rows: 3, columns: 5, numberOfCards: 5, showSongTitles: false };
     const result = await service.generate(settings, makeSongs(90));

@@ -7,33 +7,29 @@ import { BingoStateService } from '../../services/bingo-state.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ReactiveFormsModule],
   template: `
-    <form [formGroup]="form" class="settings-grid">
-      <label for="totalSongs">Total de canciones</label>
-      <input id="totalSongs" type="number" min="1" formControlName="totalSongs" />
+    <form [formGroup]="form" class="row g-3">
+      <div class="col-6 col-sm-4">
+        <label for="rows" class="form-label">Filas</label>
+        <input id="rows" type="number" min="1" class="form-control" formControlName="rows" />
+      </div>
 
-      <label for="rows">Filas</label>
-      <input id="rows" type="number" min="1" formControlName="rows" />
+      <div class="col-6 col-sm-4">
+        <label for="columns" class="form-label">Columnas</label>
+        <input id="columns" type="number" min="1" class="form-control" formControlName="columns" />
+      </div>
 
-      <label for="columns">Columnas</label>
-      <input id="columns" type="number" min="1" formControlName="columns" />
+      <div class="col-6 col-sm-4">
+        <label for="numberOfCards" class="form-label">Cartones</label>
+        <input id="numberOfCards" type="number" min="1" class="form-control" formControlName="numberOfCards" />
+      </div>
 
-      <label for="numberOfCards">Número de cartones</label>
-      <input id="numberOfCards" type="number" min="1" formControlName="numberOfCards" />
-
-      <label for="showSongTitles">Mostrar nombres de canciones</label>
-      <input id="showSongTitles" type="checkbox" formControlName="showSongTitles" />
+      <div class="col-12">
+        <div class="form-check">
+          <input id="showSongTitles" type="checkbox" class="form-check-input" formControlName="showSongTitles" />
+          <label for="showSongTitles" class="form-check-label">Mostrar nombres de canciones</label>
+        </div>
+      </div>
     </form>
-  `,
-  styles: `
-    .settings-grid {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 0.5rem 1rem;
-      align-items: center;
-    }
-    input[type='number'] {
-      width: 6rem;
-    }
   `,
 })
 export class BingoSettingsComponent {
@@ -41,8 +37,9 @@ export class BingoSettingsComponent {
   private readonly fb = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
 
+  // totalSongs isn't user-editable: it's always derived from the imported CSV
+  // (see CsvUploaderComponent), so it has no field here.
   protected readonly form = this.fb.nonNullable.group({
-    totalSongs: this.state.settings().totalSongs,
     rows: this.state.settings().rows,
     columns: this.state.settings().columns,
     numberOfCards: this.state.settings().numberOfCards,
@@ -51,13 +48,13 @@ export class BingoSettingsComponent {
 
   constructor() {
     const sub = this.form.valueChanges.subscribe((value) => {
-      this.state.settings.set({
-        totalSongs: Number(value.totalSongs) || 0,
+      this.state.settings.update((settings) => ({
+        ...settings,
         rows: Number(value.rows) || 0,
         columns: Number(value.columns) || 0,
         numberOfCards: Number(value.numberOfCards) || 0,
         showSongTitles: !!value.showSongTitles,
-      });
+      }));
     });
     this.destroyRef.onDestroy(() => sub.unsubscribe());
   }

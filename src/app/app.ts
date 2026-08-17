@@ -22,86 +22,70 @@ import { PdfSettingsComponent } from './components/pdf-settings/pdf-settings.com
     PdfSettingsComponent,
   ],
   template: `
-    <header class="app-header">
-      <h1>🎵 Bingo Musical</h1>
-      <p>Generador de cartones para imprimir</p>
-      <p class="privacy">🔒 Tus datos se procesan localmente en tu navegador. El CSV no se sube a ningún servidor.</p>
+    <header class="bg-primary text-white text-center py-4 mb-4">
+      <h1 class="h3 mb-1">🎵 Bingo Musical</h1>
+      <p class="mb-1">Generador de cartones para imprimir</p>
+      <p class="small mb-0 opacity-75">
+        🔒 Tus datos se procesan localmente en tu navegador. El CSV no se sube a ningún servidor.
+      </p>
     </header>
 
-    <main>
-      <section class="panel">
-        <h2>1. Cargar canciones</h2>
-        <app-csv-uploader />
-        <app-csv-preview />
-      </section>
+    <main class="container pb-5">
+      <div class="row g-3">
+        <div class="col-12 col-lg-6">
+          <section class="card shadow-sm h-100">
+            <div class="card-body">
+              <h2 class="h5 card-title">1. Cargar canciones</h2>
+              <app-csv-uploader />
+              <app-csv-preview />
+            </div>
+          </section>
+        </div>
 
-      <section class="panel">
-        <h2>2. Configuración</h2>
-        <app-bingo-settings />
-      </section>
+        <div class="col-12 col-lg-6">
+          <section class="card shadow-sm h-100">
+            <div class="card-body">
+              <h2 class="h5 card-title">2. Configuración</h2>
+              <app-bingo-settings />
+            </div>
+          </section>
+        </div>
 
-      <section class="panel">
-        <h2>3. Generar</h2>
-        @if (validationErrors().length) {
-          <ul class="errors">
-            @for (e of validationErrors(); track $index) {
-              <li>{{ e }}</li>
-            }
-          </ul>
+        <div class="col-12">
+          <section class="card shadow-sm">
+            <div class="card-body">
+              <h2 class="h5 card-title">3. Generar</h2>
+              @if (validationErrors().length) {
+                <ul class="alert alert-danger mb-3">
+                  @for (e of validationErrors(); track $index) {
+                    <li>{{ e }}</li>
+                  }
+                </ul>
+              }
+              <button type="button" class="btn btn-primary" [disabled]="!canGenerate()" (click)="generate()">
+                {{ state.cards().length ? '↻ REGENERAR CARTONES' : 'GENERAR CARTONES' }}
+              </button>
+              <div class="mt-3">
+                <app-generation-progress />
+              </div>
+            </div>
+          </section>
+        </div>
+
+        @if (state.cards().length > 0) {
+          <div class="col-12">
+            <section class="card shadow-sm">
+              <div class="card-body">
+                <h2 class="h5 card-title">4. Resultado</h2>
+                <app-pdf-settings />
+                <button type="button" class="btn btn-success my-3" (click)="downloadPdf()">⬇ DESCARGAR PDF</button>
+                <app-bingo-card-grid />
+              </div>
+            </section>
+          </div>
         }
-        <button type="button" [disabled]="!canGenerate()" (click)="generate()">
-          {{ state.cards().length ? '↻ REGENERAR CARTONES' : 'GENERAR CARTONES' }}
-        </button>
-        <app-generation-progress />
-      </section>
-
-      @if (state.cards().length > 0) {
-        <section class="panel">
-          <h2>4. Resultado</h2>
-          <app-pdf-settings />
-          <button type="button" (click)="downloadPdf()">⬇ DESCARGAR PDF</button>
-          <app-bingo-card-grid />
-        </section>
-      }
+      </div>
     </main>
-  `,
-  styles: `
-    :host {
-      display: block;
-      max-width: 960px;
-      margin: 0 auto;
-      padding: 1rem;
-    }
-    .app-header {
-      text-align: center;
-      margin-bottom: 1.5rem;
-    }
-    .privacy {
-      font-size: 0.8rem;
-      opacity: 0.7;
-    }
-    .panel {
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 1rem;
-      margin-bottom: 1rem;
-    }
-    button {
-      background: var(--accent);
-      color: white;
-      border: none;
-      border-radius: 6px;
-      padding: 0.5rem 1rem;
-      cursor: pointer;
-      font-weight: 600;
-    }
-    button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    .errors {
-      color: var(--danger);
-    }
   `,
 })
 export class App {

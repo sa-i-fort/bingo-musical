@@ -7,44 +7,25 @@ import { BingoStateService } from '../../services/bingo-state.service';
   template: `
     @if (state.generating()) {
       <div class="progress" role="progressbar" [attr.aria-valuenow]="percent()" aria-valuemin="0" aria-valuemax="100">
-        <div class="bar" [style.width.%]="percent()"></div>
+        <div class="progress-bar" [style.width.%]="percent()"></div>
       </div>
-      <p>Generando cartones... {{ state.generatedCount() }} / {{ state.settings().numberOfCards }}</p>
+      <p class="mt-2 mb-0">Generando cartones... {{ state.generatedCount() }} / {{ state.settings().numberOfCards }}</p>
     } @else if (state.cards().length > 0) {
-      <p class="ok">✓ {{ state.cards().length }} cartones generados correctamente</p>
-      <p class="ok">✓ Combinaciones únicas</p>
+      <p class="text-success mb-1">✓ {{ state.cards().length }} cartones generados correctamente</p>
+      <p class="text-success mb-1">✓ Combinaciones únicas</p>
       @if (state.relaxedRules()) {
-        <p class="warning">
+        <p class="text-warning mb-1">
           ⚠ Para conseguir el número solicitado se ha permitido alguna coincidencia de filas.
         </p>
       }
       @if (state.cards().length < state.settings().numberOfCards) {
-        <p class="warning">
+        <p class="text-warning mb-0">
           ⚠ Se han generado {{ state.cards().length }} de {{ state.settings().numberOfCards }} cartones. No ha sido
           posible generar más sin aumentar la posibilidad de repetir combinaciones.
         </p>
       } @else {
-        <p class="ok">✓ Sin filas duplicadas</p>
+        <p class="text-success mb-0">✓ Sin filas duplicadas</p>
       }
-    }
-  `,
-  styles: `
-    .progress {
-      background: var(--border);
-      border-radius: 4px;
-      height: 0.75rem;
-      overflow: hidden;
-    }
-    .bar {
-      background: var(--accent);
-      height: 100%;
-      transition: width 0.15s ease;
-    }
-    .ok {
-      color: var(--success);
-    }
-    .warning {
-      color: var(--warning);
     }
   `,
 })

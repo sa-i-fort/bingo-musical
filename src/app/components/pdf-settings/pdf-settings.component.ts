@@ -7,38 +7,61 @@ import { BingoStateService } from '../../services/bingo-state.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ReactiveFormsModule],
   template: `
-    <form [formGroup]="form" class="pdf-settings">
-      <label for="pdfTitle">Título del bingo</label>
-      <input id="pdfTitle" type="text" formControlName="title" />
+    <form [formGroup]="form" class="row g-3 mb-2">
+      <div class="col-12 col-sm-6">
+        <label for="pdfTitle" class="form-label">Título del bingo</label>
+        <input id="pdfTitle" type="text" class="form-control" formControlName="title" />
+      </div>
 
-      <fieldset>
-        <legend>Orientación</legend>
-        <label><input type="radio" formControlName="orientation" value="auto" /> Automática</label>
-        <label><input type="radio" formControlName="orientation" value="portrait" /> Vertical</label>
-        <label><input type="radio" formControlName="orientation" value="landscape" /> Horizontal</label>
-      </fieldset>
+      <div class="col-12 col-sm-6">
+        <fieldset>
+          <legend class="form-label col-form-label pt-0">Orientación</legend>
+          <div class="form-check form-check-inline">
+            <input id="orAuto" class="form-check-input" type="radio" formControlName="orientation" value="auto" />
+            <label class="form-check-label" for="orAuto">Automática</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input
+              id="orPortrait"
+              class="form-check-input"
+              type="radio"
+              formControlName="orientation"
+              value="portrait"
+            />
+            <label class="form-check-label" for="orPortrait">Vertical</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input
+              id="orLandscape"
+              class="form-check-input"
+              type="radio"
+              formControlName="orientation"
+              value="landscape"
+            />
+            <label class="form-check-label" for="orLandscape">Horizontal</label>
+          </div>
+        </fieldset>
+      </div>
 
-      <label for="showCardNumber">Mostrar número de cartón</label>
-      <input id="showCardNumber" type="checkbox" formControlName="showCardNumber" />
+      <div class="col-12 col-sm-6">
+        <div class="form-check">
+          <input id="showCardNumber" type="checkbox" class="form-check-input" formControlName="showCardNumber" />
+          <label for="showCardNumber" class="form-check-label">Mostrar número de cartón</label>
+        </div>
+      </div>
 
-      <label for="showSongTitlesPdf">Mostrar nombre de canción</label>
-      <input id="showSongTitlesPdf" type="checkbox" formControlName="showSongTitles" />
+      <div class="col-12 col-sm-6">
+        <div class="form-check">
+          <input
+            id="showSongTitlesPdf"
+            type="checkbox"
+            class="form-check-input"
+            formControlName="showSongTitles"
+          />
+          <label for="showSongTitlesPdf" class="form-check-label">Mostrar nombre de canción</label>
+        </div>
+      </div>
     </form>
-  `,
-  styles: `
-    .pdf-settings {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 0.5rem 1rem;
-      align-items: center;
-    }
-    fieldset {
-      grid-column: 1 / -1;
-      display: flex;
-      gap: 1rem;
-      border: none;
-      padding: 0;
-    }
   `,
 })
 export class PdfSettingsComponent {

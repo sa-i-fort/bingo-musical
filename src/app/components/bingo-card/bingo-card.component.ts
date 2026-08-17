@@ -5,54 +5,27 @@ import { BingoCard } from '../../models/bingo.models';
   selector: 'app-bingo-card',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <article class="card">
-      <header>CARTÓN #{{ label() }}</header>
-      <table>
-        <tbody>
-          @for (row of card().rows; track $index) {
-            <tr>
-              @for (cell of row; track cell.number) {
-                <td>
-                  <span class="number">{{ cell.number }}</span>
-                  @if (showTitles()) {
-                    <span class="title">{{ cell.title }}</span>
-                  }
-                </td>
-              }
-            </tr>
-          }
-        </tbody>
-      </table>
+    <article class="card h-100">
+      <div class="card-body p-2">
+        <header class="fw-bold small mb-1">CARTÓN #{{ label() }}</header>
+        <table class="table table-bordered table-sm mb-0 text-center align-middle">
+          <tbody>
+            @for (row of card().rows; track $index) {
+              <tr>
+                @for (cell of row; track cell.number) {
+                  <td>
+                    <span class="fw-bold d-block">{{ cell.number }}</span>
+                    @if (showTitles()) {
+                      <span class="d-block text-muted" style="font-size: 0.65rem;">{{ cell.title }}</span>
+                    }
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
     </article>
-  `,
-  styles: `
-    .card {
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 0.5rem;
-    }
-    header {
-      font-weight: 700;
-      margin-bottom: 0.25rem;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    td {
-      border: 1px solid var(--border);
-      text-align: center;
-      padding: 0.25rem;
-    }
-    .number {
-      display: block;
-      font-weight: 700;
-    }
-    .title {
-      display: block;
-      font-size: 0.65rem;
-      opacity: 0.75;
-    }
   `,
 })
 export class BingoCardComponent {

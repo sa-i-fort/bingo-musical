@@ -43,7 +43,11 @@ export class BingoGeneratorService {
     const similarityThreshold = Math.max(1, Math.floor(totalCells * 0.2));
 
     const generateCandidateGrid = (): number[][] | null => {
-      const columnPicks = columnPool.map((pool) => (pool.length >= settings.rows ? pickRandom(pool, settings.rows) : null));
+      const columnPicks = columnPool.map((pool) =>
+        // Random selection, but each column reads top-to-bottom in ascending
+        // order, like a real bingo card.
+        pool.length >= settings.rows ? pickRandom(pool, settings.rows).sort((a, b) => a - b) : null,
+      );
       if (columnPicks.some((pick) => pick === null)) return null;
       const grid: number[][] = [];
       for (let r = 0; r < settings.rows; r++) {

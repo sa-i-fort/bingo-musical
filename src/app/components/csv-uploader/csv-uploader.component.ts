@@ -8,8 +8,10 @@ import { BingoStateService } from '../../services/bingo-state.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div
-      class="dropzone"
-      [class.has-error]="hasErrors()"
+      class="border border-2 rounded p-4 text-center mb-2"
+      [class.border-danger]="hasErrors()"
+      [class.border-secondary-subtle]="!hasErrors()"
+      style="border-style: dashed !important; cursor: pointer;"
       tabindex="0"
       role="button"
       aria-label="Cargar archivo CSV de canciones"
@@ -19,53 +21,29 @@ import { BingoStateService } from '../../services/bingo-state.service';
       (drop)="onDrop($event)"
     >
       <input #fileInput type="file" accept=".csv,text/csv" hidden (change)="onFileSelected($event)" />
-      <p>📄 Arrastra un CSV aquí o haz clic para seleccionarlo</p>
+      <p class="mb-0">📄 Arrastra un CSV aquí o haz clic para seleccionarlo</p>
       @if (fileName()) {
-        <p class="filename">{{ fileName() }}</p>
+        <p class="fw-semibold mb-0">{{ fileName() }}</p>
       }
     </div>
 
     @if (state.csvValid()) {
-      <p class="ok">✓ {{ state.songs().length }} canciones cargadas correctamente</p>
+      <p class="text-success">✓ {{ state.songs().length }} canciones cargadas correctamente</p>
     }
 
     @if (hasErrors()) {
-      <ul class="errors">
+      <ul class="alert alert-danger">
         @for (e of state.csvErrors(); track $index) {
           <li>{{ e.message }}</li>
         }
       </ul>
     }
     @if (state.csvWarnings().length) {
-      <ul class="warnings">
+      <ul class="alert alert-warning">
         @for (w of state.csvWarnings(); track $index) {
           <li>⚠ {{ w.message }}</li>
         }
       </ul>
-    }
-  `,
-  styles: `
-    .dropzone {
-      border: 2px dashed var(--border);
-      border-radius: 8px;
-      padding: 1.5rem;
-      text-align: center;
-      cursor: pointer;
-    }
-    .dropzone.has-error {
-      border-color: var(--danger);
-    }
-    .filename {
-      font-weight: 600;
-    }
-    .ok {
-      color: var(--success);
-    }
-    .errors {
-      color: var(--danger);
-    }
-    .warnings {
-      color: var(--warning);
     }
   `,
 })
@@ -94,6 +72,12 @@ export class CsvUploaderComponent {
     this.fileName.set(file.name);
     file.text().then((text) => {
       const parsed = this.parser.parse(text);
+      // The highest song number found is the natural "total de canciones" for
+      // the bingo range; auto-fill it so the user doesn't have to type it.
+      const maxNumber = parsed.songs.reduce((max, s) => Math.max(max, s.number), 0);
+      if (maxNumber > 0) {
+        this.state.settings.update((settings) => ({ ...settings, totalSongs: maxNumber }));
+      }
       const summary = this.validator.validate(
         parsed.songs,
         parsed.duplicateNumbers,

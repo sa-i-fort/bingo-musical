@@ -10,26 +10,18 @@ const PAGE_SIZE = 20;
   imports: [BingoCardComponent],
   template: `
     @if (state.cards().length > 0) {
-      <div class="grid">
+      <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-3">
         @for (card of visible(); track card.id; let i = $index) {
-          <app-bingo-card [card]="card" [index]="i" [showTitles]="state.settings().showSongTitles" />
+          <div class="col">
+            <app-bingo-card [card]="card" [index]="i" [showTitles]="state.settings().showSongTitles" />
+          </div>
         }
       </div>
       @if (state.cards().length > visibleCount()) {
-        <button type="button" (click)="showMore()">
+        <button type="button" class="btn btn-outline-primary mt-3" (click)="showMore()">
           Ver más ({{ visibleCount() }} / {{ state.cards().length }})
         </button>
       }
-    }
-  `,
-  styles: `
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 0.75rem;
-    }
-    button {
-      margin-top: 0.75rem;
     }
   `,
 })
