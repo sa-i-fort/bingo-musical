@@ -1,10 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import { BingoCard, BingoSettings, CsvIssue, PdfSettings, Song } from '../models/bingo.models';
 
-/**
- * Simple root-level state holder using signals. No NgRx: there's a single
- * linear flow (load CSV -> configure -> generate -> export) and one owner.
- */
+/** Root-level state holder using signals: single linear flow, no NgRx needed. */
 @Injectable({ providedIn: 'root' })
 export class BingoStateService {
   readonly songs = signal<Song[]>([]);

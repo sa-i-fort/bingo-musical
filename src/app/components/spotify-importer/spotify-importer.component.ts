@@ -66,7 +66,6 @@ export class SpotifyImporterComponent {
   });
 
   constructor() {
-    // If we're coming back from the Spotify login redirect, finish the import.
     this.loading.set(true);
     this.spotify
       .consumeLoginRedirect()
@@ -81,7 +80,7 @@ export class SpotifyImporterComponent {
     if (this.form.invalid || !this.clientIdConfigured) return;
     const { playlistUrl } = this.form.getRawValue();
     this.error.set('');
-    await this.spotify.startLogin(SPOTIFY_CLIENT_ID, playlistUrl); // navigates away
+    await this.spotify.startLogin(SPOTIFY_CLIENT_ID, playlistUrl);
   }
 
   private applySongs(songs: { number: number; title: string }[]): void {

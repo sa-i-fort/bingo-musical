@@ -33,17 +33,7 @@ async function codeChallengeFor(verifier: string): Promise<string> {
   return base64UrlEncode(digest);
 }
 
-/**
- * Loads songs from a *public* Spotify playlist directly from the browser, no
- * backend involved. Spotify's Web API requires every request to carry a token
- * tied to some app identity; the only way to get one without embedding a
- * secret in frontend code is the OAuth Authorization Code + PKCE flow, which
- * only needs a public Client ID and a one-click "log in with Spotify" step
- * (no permissions/scopes are requested since the data is public).
- *
- * Numbers are assigned by track position in the playlist (1, 2, 3…) since
- * Spotify tracks have no inherent "bingo number".
- */
+/** Loads songs from a public Spotify playlist via OAuth PKCE (no client secret, no backend). */
 @Injectable({ providedIn: 'root' })
 export class SpotifyImportService {
   /** Redirects the browser to Spotify's login/consent page. */
@@ -66,11 +56,7 @@ export class SpotifyImportService {
     window.location.assign(`${AUTHORIZE_URL}?${params.toString()}`);
   }
 
-  /**
-   * Call once when the app starts. If the current URL is a Spotify login
-   * redirect (`?code=...`), completes the token exchange and returns the
-   * imported songs; otherwise returns null. Always cleans the query string.
-   */
+  /** Completes the login on redirect (`?code=...`); returns imported songs, or null if not a redirect. */
   async consumeLoginRedirect(): Promise<Song[] | null> {
     const url = new URL(window.location.href);
     const code = url.searchParams.get('code');
@@ -116,10 +102,7 @@ export class SpotifyImportService {
   private async fetchPlaylistSongs(playlistUrlOrId: string, accessToken: string): Promise<Song[]> {
     const playlistId = this.extractPlaylistId(playlistUrlOrId);
     const songs: Song[] = [];
-    // ponytail: Spotify renamed /tracks -> /items (with the payload nested one
-    // level deeper, item.item.name instead of item.track.name) sometime in
-    // 2026 without a version bump. If this breaks again, check the current
-    // shape with `curl .../playlists/{id}/items` and adjust the field paths.
+    // ponytail: Spotify renamed /tracks -> /items (item.item.name, not item.track.name). If broken again, check with curl.
     let url: string | null =
       `${API_BASE}/playlists/${playlistId}/items?limit=${PAGE_SIZE}&fields=next,items(item(name,artists(name)))`;
 
@@ -134,7 +117,7 @@ export class SpotifyImportService {
       const page = await response.json();
       for (const item of page.items ?? []) {
         const track = item.item;
-        if (!track?.name) continue; // removed/local tracks come back as null
+        if (!track?.name) continue;
         const artists = (track.artists ?? []).map((a: { name: string }) => a.name).join(', ');
         songs.push({ number: songs.length + 1, title: artists ? `${track.name} - ${artists}` : track.name });
       }

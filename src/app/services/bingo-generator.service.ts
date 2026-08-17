@@ -5,18 +5,10 @@ import { pickRandom } from '../utils/random.util';
 import { cardKey, gridDistance, rowKeys } from '../utils/card-comparison.util';
 
 const MAX_ATTEMPTS_PER_CARD = 300;
-const YIELD_EVERY = 25; // cards generated before ceding control back to the browser
-// ponytail: only compare a candidate against the most recent N cards for the
-// "too similar" heuristic instead of the whole history. O(1) per check instead
-// of O(n). Upgrade to a full scan (or a spatial index) if similarity quality
-// matters more than raw throughput for very large batches.
+const YIELD_EVERY = 25;
+// ponytail: only compares against the last N cards (O(1) vs O(n)); widen if similarity quality matters more than throughput.
 const SIMILARITY_WINDOW = 40;
 
-/**
- * All bingo-card generation logic: column ranges, random picks, uniqueness of
- * cards and rows, and progressive relaxation so it can never loop forever.
- * Has no Angular/UI dependency, so it's fully unit-testable.
- */
 @Injectable({ providedIn: 'root' })
 export class BingoGeneratorService {
   async generate(
@@ -44,8 +36,6 @@ export class BingoGeneratorService {
 
     const generateCandidateGrid = (): number[][] | null => {
       const columnPicks = columnPool.map((pool) =>
-        // Random selection, but each column reads top-to-bottom in ascending
-        // order, like a real bingo card.
         pool.length >= settings.rows ? pickRandom(pool, settings.rows).sort((a, b) => a - b) : null,
       );
       if (columnPicks.some((pick) => pick === null)) return null;
@@ -63,7 +53,7 @@ export class BingoGeneratorService {
       while (attemptBudget > 0) {
         attemptBudget--;
         const grid = generateCandidateGrid();
-        if (!grid) break; // impossible configuration, no point retrying
+        if (!grid) break;
 
         const key = cardKey(grid);
         if (usedCardKeys.has(key)) continue;
@@ -81,7 +71,6 @@ export class BingoGeneratorService {
       }
 
       if (!accepted && !allowRowCollisions) {
-        // Level 1 exhausted: relax to level 2 (allow row collisions) and retry this same card.
         allowRowCollisions = true;
         relaxed = true;
         attemptBudget = MAX_ATTEMPTS_PER_CARD;
@@ -97,7 +86,6 @@ export class BingoGeneratorService {
       }
 
       if (!accepted) {
-        // Level 3: give up gracefully, report how many were actually generated.
         break;
       }
 

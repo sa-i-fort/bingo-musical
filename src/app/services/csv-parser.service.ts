@@ -13,10 +13,7 @@ function normalize(header: string): string {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
-/**
- * Responsible exclusively for reading a CSV file and turning it into `Song[]`.
- * Delimiter detection, quoting and special characters are delegated to Papa Parse.
- */
+/** Reads a CSV and turns it into `Song[]`; delimiter/quoting handled by Papa Parse. */
 @Injectable({ providedIn: 'root' })
 export class CsvParserService {
   parse(csvText: string, numberColumn?: string, titleColumn?: string): CsvParseResult {

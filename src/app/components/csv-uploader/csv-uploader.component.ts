@@ -72,8 +72,6 @@ export class CsvUploaderComponent {
     this.fileName.set(file.name);
     file.text().then((text) => {
       const parsed = this.parser.parse(text);
-      // The highest song number found is the natural "total de canciones" for
-      // the bingo range; auto-fill it so the user doesn't have to type it.
       const maxNumber = parsed.songs.reduce((max, s) => Math.max(max, s.number), 0);
       if (maxNumber > 0) {
         this.state.settings.update((settings) => ({ ...settings, totalSongs: maxNumber }));

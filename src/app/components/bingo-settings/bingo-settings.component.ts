@@ -37,8 +37,7 @@ export class BingoSettingsComponent {
   private readonly fb = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
 
-  // totalSongs isn't user-editable: it's always derived from the imported CSV
-  // (see CsvUploaderComponent), so it has no field here.
+  // totalSongs is derived from the imported CSV (see CsvUploaderComponent), no field here.
   protected readonly form = this.fb.nonNullable.group({
     rows: this.state.settings().rows,
     columns: this.state.settings().columns,

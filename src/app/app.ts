@@ -106,7 +106,12 @@ import { PdfSettingsComponent } from './components/pdf-settings/pdf-settings.com
               <div class="card-body">
                 <h2 class="h5 card-title">4. Resultado</h2>
                 <app-pdf-settings />
-                <button type="button" class="btn btn-success my-3" (click)="downloadPdf()">⬇ DESCARGAR PDF</button>
+                <div class="d-flex gap-2 my-3">
+                  <button type="button" class="btn btn-success" (click)="downloadPdf()">⬇ DESCARGAR CARTONES</button>
+                  <button type="button" class="btn btn-outline-primary" (click)="downloadSongList()">
+                    ⬇ DESCARGAR LISTADO CANCIONES
+                  </button>
+                </div>
                 <app-bingo-card-grid />
               </div>
             </section>
@@ -122,9 +127,7 @@ export class App {
   private readonly settingsValidator = inject(BingoValidationService);
   private readonly pdfGenerator = inject(PdfGeneratorService);
 
-  // If the browser just came back from a Spotify login redirect, the query
-  // string carries ?code=... (or ?error=...); pick the Spotify tab so its
-  // component mounts and finishes the import.
+  // Coming back from a Spotify login redirect: default to that tab so it mounts and finishes.
   private readonly hasSpotifyRedirect =
     new URLSearchParams(window.location.search).has('code') ||
     new URLSearchParams(window.location.search).has('error');
@@ -150,5 +153,9 @@ export class App {
   downloadPdf(): void {
     const settings = this.state.settings();
     this.pdfGenerator.download(this.state.cards(), this.state.pdfSettings(), settings.rows, settings.columns);
+  }
+
+  downloadSongList(): void {
+    this.pdfGenerator.downloadSongList(this.state.songs());
   }
 }
