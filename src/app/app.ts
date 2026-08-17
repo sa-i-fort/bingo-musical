@@ -65,7 +65,6 @@ import { PdfSettingsComponent } from './components/pdf-settings/pdf-settings.com
               } @else {
                 <app-spotify-importer />
               }
-              <app-csv-preview />
             </div>
           </section>
         </div>
@@ -82,7 +81,16 @@ import { PdfSettingsComponent } from './components/pdf-settings/pdf-settings.com
         <div class="col-12">
           <section class="card shadow-sm">
             <div class="card-body">
-              <h2 class="h5 card-title">3. Generar</h2>
+              <h2 class="h5 card-title">3. Listado de canciones</h2>
+              <app-csv-preview />
+            </div>
+          </section>
+        </div>
+
+        <div class="col-12">
+          <section class="card shadow-sm">
+            <div class="card-body">
+              <h2 class="h5 card-title">4. Generar</h2>
               @if (validationErrors().length) {
                 <ul class="alert alert-danger mb-3">
                   @for (e of validationErrors(); track $index) {
@@ -104,7 +112,7 @@ import { PdfSettingsComponent } from './components/pdf-settings/pdf-settings.com
           <div class="col-12">
             <section class="card shadow-sm">
               <div class="card-body">
-                <h2 class="h5 card-title">4. Resultado</h2>
+                <h2 class="h5 card-title">5. Resultado</h2>
                 <app-pdf-settings />
                 <div class="d-flex gap-2 my-3">
                   <button type="button" class="btn btn-success" (click)="downloadPdf()">⬇ DESCARGAR CARTONES</button>

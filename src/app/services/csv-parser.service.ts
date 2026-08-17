@@ -82,6 +82,10 @@ export class CsvParserService {
     });
 
     result.duplicateNumbers = Array.from(duplicates).sort((a, b) => a - b);
+    // Renumber sequentially so rows dropped as duplicates/invalid don't leave gaps.
+    result.songs = result.songs
+      .sort((a, b) => a.number - b.number)
+      .map((s, index) => ({ ...s, number: index + 1 }));
     return result;
   }
 }

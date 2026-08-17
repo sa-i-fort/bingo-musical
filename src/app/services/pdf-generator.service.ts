@@ -85,6 +85,7 @@ export class PdfGeneratorService {
         doc.setTextColor(...TEXT_DARK);
         const numberColW = numberFontSize * 1.5;
         const title = this.fitText(doc, song.title, columnW - colGap - numberColW);
+        doc.setFont('times', 'normal');
         doc.text(title, colX + numberColW, rowY + rowH - rowH * 0.28);
       });
 
@@ -184,12 +185,12 @@ export class PdfGeneratorService {
         doc.text(String(cell.number), cx, cy, { align: 'center' });
         if (settings.showSongTitles) {
           const [song, artist] = this.splitSongTitle(cell.title);
-          doc.setFont('helvetica', 'bold');
+          doc.setFont('times', 'bold');
           doc.setFontSize(songFontSize);
           doc.setTextColor(...TEXT_MUTED);
           doc.text(this.fitText(doc, song, cellW - 1.5), cx, gridY + r * cellH + cellH * 0.66, { align: 'center' });
           if (artist) {
-            doc.setFont('helvetica', 'italic');
+            doc.setFont('times', 'italic');
             doc.setFontSize(artistFontSize);
             doc.text(
               this.fitText(doc, artist, cellW - 1.5),
