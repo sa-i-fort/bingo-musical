@@ -37,8 +37,6 @@ export interface BingoSettings {
 
 export interface PdfSettings {
   format: 'A4';
-  orientation: 'auto' | 'portrait' | 'landscape';
-  cardsPerPage: 'auto' | number;
   showCardNumber: boolean;
   showSongTitles: boolean;
 }

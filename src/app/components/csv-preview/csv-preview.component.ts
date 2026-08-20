@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import Papa from 'papaparse';
 import { BingoStateService } from '../../services/bingo-state.service';
 
 @Component({
@@ -12,6 +13,9 @@ import { BingoStateService } from '../../services/bingo-state.service';
         <span>Máx: {{ maxNumber() }}</span>
       </div>
       <p class="small text-muted mb-2">Arrastra las filas (⠿) para reordenar la lista.</p>
+      <button type="button" class="btn btn-sm btn-outline-secondary mb-2" (click)="downloadCsv()">
+        ⬇ Descargar CSV
+      </button>
       <div class="table-responsive overflow-auto" style="max-height: 340px;">
         <table class="table table-sm table-striped mb-0">
           <thead class="sticky-top bg-white">
@@ -86,5 +90,18 @@ export class CsvPreviewComponent {
     this.state.songs.set(remaining);
     this.state.settings.update((settings) => ({ ...settings, totalSongs: remaining.length }));
     this.state.cards.set([]);
+  }
+
+  downloadCsv(): void {
+    const csv = Papa.unparse(
+      this.state.songs().map((s) => ({ numero: s.number, cancion: s.title })),
+    );
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'listado-canciones.csv';
+    a.click();
+    URL.revokeObjectURL(url);
   }
 }

@@ -5,7 +5,10 @@ import { BingoCard, PdfSettings, Song } from '../models/bingo.models';
 const PAGE_MM = { portrait: { w: 210, h: 297 }, landscape: { w: 297, h: 210 } };
 const MARGIN = 10;
 const GAP = 4;
-const HEADER_H = 8;
+const HEADER_H = 5;
+const CARDS_PER_ROW = 3;
+const CARDS_PER_COL = 3;
+const LEGEND_GAP = 2;
 
 const ACCENT: [number, number, number] = [109, 40, 217];
 const HEADER_BG: [number, number, number] = [237, 233, 254];
@@ -20,24 +23,22 @@ export class PdfGeneratorService {
   download(cards: BingoCard[], settings: PdfSettings, rows: number, columns: number): void {
     if (cards.length === 0) return;
 
-    const layout = this.resolveLayout(settings.orientation, rows, columns);
-    const doc = new jsPDF({ orientation: layout.orientation, unit: 'mm', format: 'a4' });
-
-    const cardsPerPage =
-      settings.cardsPerPage === 'auto'
-        ? layout.fitPerPage
-        : Math.max(1, Math.min(settings.cardsPerPage, layout.fitPerPage));
+    const layout = this.computeLayout(rows, columns, settings);
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const cardsPerPage = CARDS_PER_ROW * CARDS_PER_COL;
+    const maxDigits = Math.max(...cards.flatMap((c) => c.rows.flat().map((cell) => String(cell.number).length)));
+    const numberFontSize = this.fitNumberFontSize(doc, layout.cellW, layout.cellH, maxDigits);
 
     cards.forEach((card, index) => {
       const posInPage = index % cardsPerPage;
       if (posInPage === 0 && index > 0) doc.addPage();
 
-      const col = posInPage % layout.perRow;
-      const row = Math.floor(posInPage / layout.perRow);
+      const col = posInPage % CARDS_PER_ROW;
+      const row = Math.floor(posInPage / CARDS_PER_ROW);
       const x = MARGIN + col * (layout.cardW + GAP);
       const y = MARGIN + row * (layout.cardH + GAP);
 
-      this.drawCard(doc, card, index, x, y, layout.cellW, layout.cellH, rows, columns, settings);
+      this.drawCard(doc, card, index, x, y, layout.cellW, layout.cellH, layout.legendW, numberFontSize, settings);
     });
 
     doc.save('bingo-musical.pdf');
@@ -76,17 +77,19 @@ export class PdfGeneratorService {
           doc.setFillColor(...ALT_ROW);
           doc.rect(colX, rowY, columnW - colGap, rowH, 'F');
         }
+        const numberX = colX + 1.5;
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(numberFontSize);
         doc.setTextColor(...ACCENT);
-        doc.text(String(song.number).padStart(2, '0'), colX + 1.5, rowY + rowH - rowH * 0.28);
-        doc.setFont('helvetica', 'normal');
+        const numberText = String(song.number).padStart(2, '0');
+        doc.text(numberText, numberX, rowY + rowH - rowH * 0.28);
+
+        const titleX = numberX + doc.getTextWidth(numberText) + 2;
+        doc.setFont('times', 'normal');
         doc.setFontSize(titleFontSize);
         doc.setTextColor(...TEXT_DARK);
-        const numberColW = numberFontSize * 1.5;
-        const title = this.fitText(doc, song.title, columnW - colGap - numberColW);
-        doc.setFont('times', 'normal');
-        doc.text(title, colX + numberColW, rowY + rowH - rowH * 0.28);
+        const title = this.fitText(doc, song.title, colX + columnW - colGap - titleX);
+        doc.text(title, titleX, rowY + rowH - rowH * 0.28);
       });
 
       if (c > 0) {
@@ -99,32 +102,23 @@ export class PdfGeneratorService {
     doc.save('listado-canciones.pdf');
   }
 
-  /** Picks the orientation that fits more cards per page, unless the user forces one. */
-  private resolveLayout(pref: PdfSettings['orientation'], rows: number, columns: number) {
-    const portrait = this.computeLayout('portrait', rows, columns);
-    if (pref === 'portrait') return portrait;
-
-    const landscape = this.computeLayout('landscape', rows, columns);
-    if (pref === 'landscape') return landscape;
-
-    return landscape.fitPerPage > portrait.fitPerPage ? landscape : portrait;
-  }
-
-  private computeLayout(orientation: 'portrait' | 'landscape', rows: number, columns: number) {
-    const page = PAGE_MM[orientation];
+  private computeLayout(rows: number, columns: number, settings: PdfSettings) {
+    const page = PAGE_MM.landscape;
     const usableW = page.w - MARGIN * 2;
     const usableH = page.h - MARGIN * 2;
 
-    // ponytail: raised caps so text fills as much of the page as the grid allows.
-    const cellW = Math.min(46, usableW / columns);
-    const cellH = Math.min(30, cellW * 0.65);
-    const cardW = cellW * columns;
+    const cardWTarget = (usableW - (CARDS_PER_ROW - 1) * GAP) / CARDS_PER_ROW;
+    const cardHTarget = (usableH - (CARDS_PER_COL - 1) * GAP) / CARDS_PER_COL;
+
+    const legendW = settings.showSongTitles ? Math.min(34, cardWTarget * 0.34) : 0;
+    const gridWTarget = cardWTarget - (legendW > 0 ? legendW + LEGEND_GAP : 0);
+
+    const cellW = Math.min(46, gridWTarget / columns);
+    const cellH = Math.min(40, (cardHTarget - HEADER_H) / rows);
+    const cardW = cellW * columns + (legendW > 0 ? legendW + LEGEND_GAP : 0);
     const cardH = cellH * rows + HEADER_H;
 
-    const perRow = Math.max(1, Math.floor((usableW + GAP) / (cardW + GAP)));
-    const perCol = Math.max(1, Math.floor((usableH + GAP) / (cardH + GAP)));
-
-    return { orientation, page, cellW, cellH, cardW, cardH, perRow, perCol, fitPerPage: perRow * perCol };
+    return { cellW, cellH, legendW, cardW, cardH };
   }
 
   private drawCard(
@@ -135,11 +129,14 @@ export class PdfGeneratorService {
     y: number,
     cellW: number,
     cellH: number,
-    rows: number,
-    columns: number,
+    legendW: number,
+    numberFontSize: number,
     settings: PdfSettings,
   ): void {
-    const cardW = cellW * columns;
+    const rows = card.rows.length;
+    const columns = card.rows[0]?.length ?? 0;
+    const gridW = cellW * columns;
+    const cardW = gridW + (legendW > 0 ? legendW + LEGEND_GAP : 0);
     const cardH = cellH * rows;
     const gridY = y + HEADER_H;
 
@@ -152,58 +149,77 @@ export class PdfGeneratorService {
 
     if (settings.showCardNumber) {
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(Math.min(12, HEADER_H * 1.1));
+      doc.setFontSize(Math.min(9, HEADER_H * 1.4));
       doc.setTextColor(...ACCENT);
-      doc.text(`CARTÓN #${String(index + 1).padStart(3, '0')}`, x + 2.5, y + HEADER_H * 0.65);
+      doc.text(`CARTÓN #${String(index + 1).padStart(3, '0')}`, x + 2, y + HEADER_H * 0.7);
     }
 
     doc.setFillColor(255, 255, 255);
-    doc.rect(x, gridY, cardW, cardH, 'F');
+    doc.rect(x, gridY, gridW, cardH, 'F');
     doc.setFillColor(...ALT_ROW);
-    for (let r = 0; r < rows; r += 2) doc.rect(x, gridY + r * cellH, cardW, cellH, 'F');
+    for (let r = 0; r < rows; r += 2) doc.rect(x, gridY + r * cellH, gridW, cellH, 'F');
 
     doc.setDrawColor(...GRID_LINE);
     doc.setLineWidth(0.25);
-    for (let r = 0; r <= rows; r++) doc.line(x, gridY + r * cellH, x + cardW, gridY + r * cellH);
+    for (let r = 0; r <= rows; r++) doc.line(x, gridY + r * cellH, x + gridW, gridY + r * cellH);
     for (let c = 0; c <= columns; c++) doc.line(x + c * cellW, gridY, x + c * cellW, gridY + cardH);
     doc.setDrawColor(...BORDER);
     doc.setLineWidth(0.4);
-    doc.rect(x, gridY, cardW, cardH, 'S');
+    doc.rect(x, gridY, gridW, cardH, 'S');
 
-    const numberFontSize = Math.min(26, cellH * (settings.showSongTitles ? 0.5 : 0.85));
-    const songFontSize = Math.min(16, cellH * 0.34);
-    const artistFontSize = Math.min(13, cellH * 0.28);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(numberFontSize);
+    doc.setTextColor(...TEXT_DARK);
     card.rows.forEach((cellRow, r) => {
       cellRow.forEach((cell, c) => {
         const cx = x + c * cellW + cellW / 2;
-        const cy = gridY + r * cellH + (settings.showSongTitles ? cellH * 0.32 : cellH / 2 + numberFontSize * 0.12);
-        doc.setTextColor(...TEXT_DARK);
-        doc.setFont('helvetica', 'bold');
+        const cy = gridY + r * cellH + cellH / 2 + numberFontSize * 0.12;
         doc.setFontSize(numberFontSize);
         doc.text(String(cell.number), cx, cy, { align: 'center' });
-        if (settings.showSongTitles) {
-          const [song, artist] = this.splitSongTitle(cell.title);
-          doc.setFont('times', 'bold');
-          doc.setFontSize(songFontSize);
-          doc.setTextColor(...TEXT_MUTED);
-          doc.text(this.fitText(doc, song, cellW - 1.5), cx, gridY + r * cellH + cellH * 0.66, { align: 'center' });
-          if (artist) {
-            doc.setFont('times', 'italic');
-            doc.setFontSize(artistFontSize);
-            doc.text(
-              this.fitText(doc, artist, cellW - 1.5),
-              cx,
-              gridY + r * cellH + cellH * 0.86,
-              { align: 'center' },
-            );
-          }
-        }
       });
     });
+
+    if (legendW > 0) {
+      this.drawLegend(doc, card, x + gridW + LEGEND_GAP, gridY, legendW, cardH, rows * columns);
+    }
+
     doc.setTextColor(...TEXT_DARK);
     doc.setFont('helvetica', 'normal');
+  }
+
+  /** Largest font size (bold, helvetica) that fits both the cell width (for the widest number) and height. */
+  private fitNumberFontSize(doc: jsPDF, cellW: number, cellH: number, maxDigits: number): number {
+    doc.setFont('helvetica', 'bold');
+    const sample = '8'.repeat(maxDigits);
+    const probeSize = 10;
+    doc.setFontSize(probeSize);
+    const widthPerPt = doc.getTextWidth(sample) / probeSize;
+    const maxByWidth = (cellW - 2) / widthPerPt;
+    return Math.min(40, maxByWidth, cellH * 0.8);
+  }
+
+  /** Small "número - canción" reference list next to the grid, sorted ascending. */
+  private drawLegend(doc: jsPDF, card: BingoCard, x: number, y: number, w: number, h: number, entryCount: number): void {
+    const entries = card.rows
+      .flat()
+      .slice()
+      .sort((a, b) => a.number - b.number);
+
+    const rowH = h / entryCount;
+    const fontSize = Math.min(7, rowH * 1.8);
+
+    entries.forEach((entry, i) => {
+      const rowY = y + i * rowH;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(fontSize);
+      doc.setTextColor(...ACCENT);
+      const numberText = String(entry.number);
+      doc.text(numberText, x, rowY + rowH * 0.75);
+
+      const titleX = x + doc.getTextWidth(numberText) + 1.5;
+      doc.setFont('times', 'normal');
+      doc.setTextColor(...TEXT_MUTED);
+      doc.text(this.fitText(doc, entry.title, x + w - titleX), titleX, rowY + rowH * 0.75);
+    });
   }
 
   private fitText(doc: jsPDF, text: string, maxWidthMm: number): string {
@@ -212,12 +228,5 @@ export class PdfGeneratorService {
       result = result.slice(0, -1);
     }
     return result.length < text.length ? result.slice(0, -1) + '…' : result;
-  }
-
-  /** Splits a "Song - Artist" title into two lines; falls back to one line if there's no separator. */
-  private splitSongTitle(title: string): [string, string | null] {
-    const separatorIndex = title.indexOf(' - ');
-    if (separatorIndex === -1) return [title, null];
-    return [title.slice(0, separatorIndex), title.slice(separatorIndex + 3)];
   }
 }

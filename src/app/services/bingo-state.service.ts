@@ -19,8 +19,6 @@ export class BingoStateService {
 
   readonly pdfSettings = signal<PdfSettings>({
     format: 'A4',
-    orientation: 'auto',
-    cardsPerPage: 'auto',
     showCardNumber: true,
     showSongTitles: true,
   });
