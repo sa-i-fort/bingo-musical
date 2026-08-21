@@ -7,6 +7,9 @@ const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const API_BASE = 'https://api.spotify.com/v1';
 const PAGE_SIZE = 100;
 const PENDING_LOGIN_KEY = 'bingo-musical:spotify-pkce-pending';
+/** Set by main.ts before Angular boots, to rescue Spotify's redirect query string from being
+ * dropped by the Router's initial hash-location redirect. See main.ts for the full story. */
+export const SPOTIFY_REDIRECT_PARAMS_KEY = 'bingo-musical:spotify-redirect-params';
 
 /** Thrown for any Spotify-related failure, with a message safe to show the user. */
 export class SpotifyImportError extends Error {}
@@ -44,20 +47,23 @@ export class SpotifyImportService {
 
   /** Completes the login on redirect (`?code=...`); returns imported songs, or null if not a redirect. */
   async consumeLoginRedirect(): Promise<Song[] | null> {
-    const url = new URL(window.location.href);
-    const code = url.searchParams.get('code');
-    const error = url.searchParams.get('error');
-    const returnedState = url.searchParams.get('state');
+    const raw = sessionStorage.getItem(SPOTIFY_REDIRECT_PARAMS_KEY);
+    sessionStorage.removeItem(SPOTIFY_REDIRECT_PARAMS_KEY);
+    if (!raw) return null;
+
+    const params = new URLSearchParams(raw);
+    const code = params.get('code');
+    const error = params.get('error');
+    const returnedState = params.get('state');
     if (!code && !error) return null;
 
-    const raw = sessionStorage.getItem(PENDING_LOGIN_KEY);
+    const rawPending = sessionStorage.getItem(PENDING_LOGIN_KEY);
     sessionStorage.removeItem(PENDING_LOGIN_KEY);
-    this.stripQueryParams();
 
     if (error) throw new SpotifyImportError('Acceso a Spotify cancelado o denegado.');
-    if (!raw) throw new SpotifyImportError('La sesión de login con Spotify ha expirado. Inténtalo de nuevo.');
+    if (!rawPending) throw new SpotifyImportError('La sesión de login con Spotify ha expirado. Inténtalo de nuevo.');
 
-    const pending = JSON.parse(raw) as PendingLogin;
+    const pending = JSON.parse(rawPending) as PendingLogin;
     if (pending.state !== returnedState) {
       throw new SpotifyImportError('No se pudo validar la respuesta de Spotify (estado inválido).');
     }
@@ -128,11 +134,5 @@ export class SpotifyImportService {
     const trimmed = input.trim();
     const match = trimmed.match(/playlist[/:]([a-zA-Z0-9]+)/);
     return match ? match[1] : trimmed;
-  }
-
-  private stripQueryParams(): void {
-    const url = new URL(window.location.href);
-    url.search = '';
-    window.history.replaceState({}, '', url.toString());
   }
 }

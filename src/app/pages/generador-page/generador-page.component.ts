@@ -6,6 +6,7 @@ import { BingoValidationService } from '../../services/bingo-validation.service'
 import { PdfGeneratorService } from '../../services/pdf-generator.service';
 import { JuegoService } from '../../services/juego.service';
 import { allSongsPlayable } from '../../services/juego-state.service';
+import { SPOTIFY_REDIRECT_PARAMS_KEY } from '../../services/spotify-import.service';
 import { CsvUploaderComponent } from '../../components/csv-uploader/csv-uploader.component';
 import { CsvPreviewComponent } from '../../components/csv-preview/csv-preview.component';
 import { SpotifyImporterComponent } from '../../components/spotify-importer/spotify-importer.component';
@@ -169,9 +170,8 @@ export class GeneradorPageComponent {
   private readonly router = inject(Router);
 
   // Coming back from a Spotify login redirect: default to that tab so it mounts and finishes.
-  private readonly hasSpotifyRedirect =
-    new URLSearchParams(window.location.search).has('code') ||
-    new URLSearchParams(window.location.search).has('error');
+  // (main.ts already moved the real query string into sessionStorage before the Router could drop it.)
+  private readonly hasSpotifyRedirect = !!sessionStorage.getItem(SPOTIFY_REDIRECT_PARAMS_KEY);
   protected readonly source = signal<'csv' | 'spotify'>(this.hasSpotifyRedirect ? 'spotify' : 'csv');
 
   protected readonly validationErrors = computed(
