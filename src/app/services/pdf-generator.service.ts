@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import jsPDF from 'jspdf';
 import { BingoCard, BingoCell, PdfSettings, Song } from '../models/bingo.models';
+import { splitSongTitle } from '../utils/song-title.util';
 
 const PAGE_MM = { portrait: { w: 210, h: 297 }, landscape: { w: 297, h: 210 } };
 const MARGIN = 10;
@@ -172,7 +173,7 @@ export class PdfGeneratorService {
     card.rows.forEach((cellRow, r) => {
       cellRow.forEach((cell, c) => {
         const cx = x + c * cellW + cellW / 2;
-        const [song, artist] = this.splitSongTitle(cell.title);
+        const [song, artist] = splitSongTitle(cell.title);
 
         doc.setFont('times', 'bold');
         doc.setFontSize(songFontSize);
@@ -221,7 +222,7 @@ export class PdfGeneratorService {
   ): { songFontSize: number; artistFontSize: number } {
     const ARTIST_RATIO = 0.72;
     const MAX_LINES = 3;
-    const parsed = cells.map((cell) => this.splitSongTitle(cell.title));
+    const parsed = cells.map((cell) => splitSongTitle(cell.title));
 
     for (let fontSize = 32; fontSize >= 6; fontSize -= 0.5) {
       const artistFontSize = fontSize * ARTIST_RATIO;
@@ -256,12 +257,5 @@ export class PdfGeneratorService {
       result = result.slice(0, -1);
     }
     return result.length < text.length ? result.slice(0, -1) + '…' : result;
-  }
-
-  /** Splits a "Song - Artist" title into two lines; falls back to one line if there's no separator. */
-  private splitSongTitle(title: string): [string, string | null] {
-    const separatorIndex = title.indexOf(' - ');
-    if (separatorIndex === -1) return [title, null];
-    return [title.slice(0, separatorIndex), title.slice(separatorIndex + 3)];
   }
 }

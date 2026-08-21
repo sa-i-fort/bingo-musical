@@ -91,7 +91,7 @@ export class SpotifyImportService {
     const seenIds = new Set<string>();
     // ponytail: Spotify renamed /tracks -> /items (item.item.name, not item.track.name). If broken again, check with curl.
     let url: string | null =
-      `${API_BASE}/playlists/${playlistId}/items?limit=${PAGE_SIZE}&fields=next,items(item(id,name,artists(name)))`;
+      `${API_BASE}/playlists/${playlistId}/items?limit=${PAGE_SIZE}&fields=next,items(item(id,name,artists(name),album(images)))`;
 
     while (url) {
       const response: Response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
@@ -108,7 +108,12 @@ export class SpotifyImportService {
         if (track.id && seenIds.has(track.id)) continue;
         if (track.id) seenIds.add(track.id);
         const artists = (track.artists ?? []).map((a: { name: string }) => a.name).join(', ');
-        songs.push({ number: songs.length + 1, title: artists ? `${track.name} - ${artists}` : track.name });
+        songs.push({
+          number: songs.length + 1,
+          title: artists ? `${track.name} - ${artists}` : track.name,
+          spotifyId: track.id,
+          image: track.album?.images?.[0]?.url,
+        });
       }
       url = page.next;
     }

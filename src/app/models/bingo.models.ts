@@ -1,6 +1,9 @@
 export interface Song {
   number: number;
   title: string;
+  /** Only set when imported from Spotify; required to start a live game (embedded player needs a track id). */
+  spotifyId?: string;
+  image?: string;
 }
 
 export interface CsvIssue {

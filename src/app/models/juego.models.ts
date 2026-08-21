@@ -1,7 +1,7 @@
 export interface GameTrack {
   name: string;
   artist: string;
-  uri: string;
+  spotifyId: string;
   image: string;
 }
 
@@ -20,17 +20,11 @@ export interface GameState {
   current: GameNumber | null;
 }
 
-/** Local-only reference to a game this browser created, used to list "my games" without a login system. */
-export interface MyGameRef {
-  code: string;
-  name: string;
-  createdAt: string;
-}
-
-/** Row shape for listing every game that exists in Supabase (admin screen), regardless of who created it. */
-export interface AdminGameRef {
+/** Row shape for listing every game that exists in Supabase ("Mis partidas" screen). */
+export interface GameSummary {
   code: string;
   name: string;
   updatedAt: string;
   drawnCount: number;
+  total: number;
 }

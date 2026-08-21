@@ -1,10 +1,9 @@
 import { Injectable } from '@angular/core';
 import { RealtimeChannel } from '@supabase/supabase-js';
-import { BingoCard } from '../models/bingo.models';
-import { AdminGameRef, GameState } from '../models/juego.models';
+import { BingoCard, Song } from '../models/bingo.models';
+import { GameState, GameSummary } from '../models/juego.models';
 import { SupabaseClientService } from './supabase-client.service';
-import { GameSpotifyService } from './game-spotify.service';
-import { JuegoStateService, buildMapping, newGameCode } from './juego-state.service';
+import { JuegoStateService, allSongsPlayable, buildMapping, newGameCode, setActiveGameCode } from './juego-state.service';
 
 /** Business logic for the "juego" module: create/draw/persist games, realtime sync for spectators. */
 @Injectable({ providedIn: 'root' })
@@ -13,13 +12,15 @@ export class JuegoService {
 
   constructor(
     private readonly supabase: SupabaseClientService,
-    private readonly spotify: GameSpotifyService,
     private readonly state: JuegoStateService,
   ) {}
 
-  async createGame(name: string, playlistUrl: string, cards: readonly BingoCard[]): Promise<string> {
-    const tracks = await this.spotify.fetchPlaylistTracks(playlistUrl);
-    const mapping = buildMapping(tracks);
+  /** Creates a game from the songs and cards already generated in the "Generador" tab. */
+  async createGame(name: string, songs: readonly Song[], cards: readonly BingoCard[]): Promise<string> {
+    if (!allSongsPlayable(songs)) {
+      throw new Error('Todas las canciones deben venir de Spotify (con su track id) para poder jugar en directo.');
+    }
+    const mapping = buildMapping(songs);
     const pending = mapping.map((m) => m.number);
 
     // Retry a couple of times on the (very unlikely) code collision.
@@ -29,7 +30,7 @@ export class JuegoService {
       const { error } = await this.supabase.client.from('games').insert({ code, state: game });
       if (!error) {
         await this.attachCards(code, cards);
-        this.state.rememberGame({ code, name, createdAt: new Date().toISOString() });
+        setActiveGameCode(code);
         this.state.game.set(game);
         this.state.linkedCards.set(cards.slice());
         return code;
@@ -48,6 +49,7 @@ export class JuegoService {
     this.state.game.set((gameResult.data as { state: GameState }).state);
     const cardRows = (cardsResult.data ?? []) as { card_id: string; rows: BingoCard['rows'] }[];
     this.state.linkedCards.set(cardRows.map((c) => ({ id: c.card_id, rows: c.rows })));
+    setActiveGameCode(code);
   }
 
   async drawNext(): Promise<void> {
@@ -61,33 +63,30 @@ export class JuegoService {
     const updated: GameState = { ...game, drawn, pending, current };
     this.state.game.set(updated);
     await this.persist(updated);
-    if (current?.track) await this.spotify.play(current.track.uri);
-  }
-
-  async replayCurrent(): Promise<void> {
-    const track = this.state.game()?.current?.track;
-    if (track) await this.spotify.play(track.uri);
   }
 
   async deleteGame(code: string): Promise<void> {
     await this.supabase.client.from('games').delete().eq('code', code);
-    this.state.forgetGame(code);
     if (this.state.game()?.code === code) this.state.game.set(null);
   }
 
-  /** Lists every game in Supabase (not just this browser's), for the admin screen. */
-  async listAllGames(): Promise<AdminGameRef[]> {
+  /** Lists every game in Supabase, for the "Mis partidas" screen. */
+  async listAllGames(): Promise<GameSummary[]> {
     const { data, error } = await this.supabase.client
       .from('games')
       .select('code, state, updated_at')
       .order('updated_at', { ascending: false });
     if (error) throw new Error('No se pudieron cargar las partidas.');
-    return (data ?? []).map((row) => ({
-      code: row.code as string,
-      name: (row.state as GameState).name,
-      updatedAt: row.updated_at as string,
-      drawnCount: (row.state as GameState).drawn.length,
-    }));
+    return (data ?? []).map((row) => {
+      const gameState = row.state as GameState;
+      return {
+        code: row.code as string,
+        name: gameState.name,
+        updatedAt: row.updated_at as string,
+        drawnCount: gameState.drawn.length,
+        total: gameState.mapping.length,
+      };
+    });
   }
 
   /** Subscribes to live updates for a game (used by the read-only spectator view). */

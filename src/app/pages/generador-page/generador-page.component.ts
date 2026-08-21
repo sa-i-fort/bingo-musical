@@ -1,8 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { BingoStateService } from '../../services/bingo-state.service';
 import { BingoGeneratorService } from '../../services/bingo-generator.service';
 import { BingoValidationService } from '../../services/bingo-validation.service';
 import { PdfGeneratorService } from '../../services/pdf-generator.service';
+import { JuegoService } from '../../services/juego.service';
+import { allSongsPlayable } from '../../services/juego-state.service';
 import { CsvUploaderComponent } from '../../components/csv-uploader/csv-uploader.component';
 import { CsvPreviewComponent } from '../../components/csv-preview/csv-preview.component';
 import { SpotifyImporterComponent } from '../../components/spotify-importer/spotify-importer.component';
@@ -118,6 +121,41 @@ import { PdfSettingsComponent } from '../../components/pdf-settings/pdf-settings
             </div>
           </section>
         </div>
+
+        <div class="col-12">
+          <section class="card shadow-sm">
+            <div class="card-body">
+              <h2 class="h5 card-title">6. Arrancar partida en directo</h2>
+              @if (!songsPlayable()) {
+                <p class="alert alert-warning mb-3">
+                  Para arrancar una partida en directo necesitas importar las canciones desde Spotify (para poder
+                  reproducirlas). Vuelve al paso 1 y usa la pestaña "Playlist de Spotify".
+                </p>
+              } @else {
+                @if (createError()) {
+                  <p class="alert alert-danger">{{ createError() }}</p>
+                }
+                <div class="input-group" style="max-width: 28rem">
+                  <input
+                    type="text"
+                    class="form-control"
+                    placeholder="Nombre de la partida"
+                    [value]="gameName()"
+                    (input)="gameName.set($any($event.target).value)"
+                  />
+                  <button
+                    type="button"
+                    class="btn btn-success"
+                    [disabled]="!gameName().trim() || creatingGame()"
+                    (click)="startGame()"
+                  >
+                    ▶ Crear partida y empezar
+                  </button>
+                </div>
+              }
+            </div>
+          </section>
+        </div>
       }
     </div>
   `,
@@ -127,6 +165,8 @@ export class GeneradorPageComponent {
   private readonly generator = inject(BingoGeneratorService);
   private readonly settingsValidator = inject(BingoValidationService);
   private readonly pdfGenerator = inject(PdfGeneratorService);
+  private readonly juego = inject(JuegoService);
+  private readonly router = inject(Router);
 
   // Coming back from a Spotify login redirect: default to that tab so it mounts and finishes.
   private readonly hasSpotifyRedirect =
@@ -138,6 +178,11 @@ export class GeneradorPageComponent {
     () => this.settingsValidator.validate(this.state.settings(), this.state.songs()).errors,
   );
   protected readonly canGenerate = computed(() => this.validationErrors().length === 0 && !this.state.generating());
+  protected readonly songsPlayable = computed(() => allSongsPlayable(this.state.songs()));
+
+  protected readonly gameName = signal('');
+  protected readonly creatingGame = signal(false);
+  protected readonly createError = signal<string | null>(null);
 
   async generate(): Promise<void> {
     this.state.generating.set(true);
@@ -158,5 +203,18 @@ export class GeneradorPageComponent {
 
   downloadSongList(): void {
     this.pdfGenerator.downloadSongList(this.state.songs());
+  }
+
+  async startGame(): Promise<void> {
+    this.creatingGame.set(true);
+    this.createError.set(null);
+    try {
+      const code = await this.juego.createGame(this.gameName().trim(), this.state.songs(), this.state.cards());
+      await this.router.navigate(['/juego', code]);
+    } catch (error) {
+      this.createError.set((error as Error).message);
+    } finally {
+      this.creatingGame.set(false);
+    }
   }
 }

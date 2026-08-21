@@ -4,11 +4,12 @@ import { JuegoService } from '../../services/juego.service';
 import { JuegoStateService } from '../../services/juego-state.service';
 import { NumbersBoardComponent } from '../../components/numbers-board/numbers-board.component';
 import { LeaderboardComponent } from '../../components/leaderboard/leaderboard.component';
+import { SpotifyEmbedComponent } from '../../components/spotify-embed/spotify-embed.component';
 
 @Component({
   selector: 'app-juego-espectador',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NumbersBoardComponent, LeaderboardComponent],
+  imports: [NumbersBoardComponent, LeaderboardComponent, SpotifyEmbedComponent],
   template: `
     @if (state.errorMessage()) {
       <p class="alert alert-danger">{{ state.errorMessage() }}</p>
@@ -22,10 +23,9 @@ import { LeaderboardComponent } from '../../components/leaderboard/leaderboard.c
               <h2 class="h6 text-uppercase text-muted">Número actual</h2>
               <div class="display-1 fw-bold text-success">{{ state.game()!.current?.number ?? '-' }}</div>
               @if (state.game()!.current?.track; as track) {
-                <img [src]="track.image" alt="" class="rounded shadow-sm my-2" width="140" height="140" />
-                <p class="fw-bold mb-0">{{ track.name }}</p>
-                <p class="text-muted small">{{ track.artist }}</p>
-                <a [href]="track.uri" class="btn btn-sm btn-outline-success mt-2">🎧 Abrir en Spotify</a>
+                <p class="fw-bold mb-1">{{ track.name }}</p>
+                <p class="text-muted small mb-2">{{ track.artist }}</p>
+                <app-spotify-embed [spotifyId]="track.spotifyId" />
               } @else if (state.game()!.current) {
                 <p class="text-muted fst-italic mt-3">Número comodín (sin canción)</p>
               } @else {
@@ -40,9 +40,11 @@ import { LeaderboardComponent } from '../../components/leaderboard/leaderboard.c
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-center mb-3">
                 <h2 class="h5 mb-0">Tablero general</h2>
-                <span class="badge text-bg-success fs-6">{{ state.game()!.drawn.length }} / 90</span>
+                <span class="badge text-bg-success fs-6">
+                  {{ state.game()!.drawn.length }} / {{ state.game()!.mapping.length }}
+                </span>
               </div>
-              <app-numbers-board [drawn]="state.game()!.drawn" />
+              <app-numbers-board [drawn]="state.game()!.drawn" [total]="state.game()!.mapping.length" />
             </div>
           </section>
 

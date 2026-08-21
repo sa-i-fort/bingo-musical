@@ -1,20 +1,32 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { JuegoService } from '../../services/juego.service';
-import { JuegoStateService } from '../../services/juego-state.service';
+import { JuegoStateService, getActiveGameCode } from '../../services/juego-state.service';
 import { PdfGeneratorService } from '../../services/pdf-generator.service';
 import { NumbersBoardComponent } from '../../components/numbers-board/numbers-board.component';
 import { LeaderboardComponent } from '../../components/leaderboard/leaderboard.component';
+import { SpotifyEmbedComponent } from '../../components/spotify-embed/spotify-embed.component';
 
 @Component({
   selector: 'app-juego-board',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NumbersBoardComponent, LeaderboardComponent],
+  imports: [NumbersBoardComponent, LeaderboardComponent, SpotifyEmbedComponent, RouterLink],
   template: `
     @if (state.errorMessage()) {
       <p class="alert alert-danger">{{ state.errorMessage() }}</p>
-    } @else if (!state.game()) {
+    } @else if (state.loading()) {
       <p class="text-muted">Cargando partida…</p>
+    } @else if (!state.game()) {
+      <div class="card shadow-sm">
+        <div class="card-body text-center py-5">
+          <h2 class="h5">No hay ninguna partida activa</h2>
+          <p class="text-muted">Genera unos cartones y arranca una partida desde el Generador.</p>
+          <div class="d-flex justify-content-center gap-2 mt-3">
+            <a class="btn btn-primary" routerLink="/generador">Ir al Generador</a>
+            <a class="btn btn-outline-secondary" routerLink="/mis-partidas">Ver mis partidas</a>
+          </div>
+        </div>
+      </div>
     } @else {
       <p class="small text-muted">
         Enlace para espectadores: <code>{{ spectatorLink() }}</code>
@@ -27,9 +39,9 @@ import { LeaderboardComponent } from '../../components/leaderboard/leaderboard.c
               <h2 class="h6 text-uppercase text-muted">Número actual</h2>
               <div class="display-1 fw-bold text-success">{{ state.game()!.current?.number ?? '-' }}</div>
               @if (state.game()!.current?.track; as track) {
-                <img [src]="track.image" alt="" class="rounded shadow-sm my-2" width="140" height="140" />
-                <p class="fw-bold mb-0">{{ track.name }}</p>
-                <p class="text-muted small">{{ track.artist }}</p>
+                <p class="fw-bold mb-1">{{ track.name }}</p>
+                <p class="text-muted small mb-2">{{ track.artist }}</p>
+                <app-spotify-embed [spotifyId]="track.spotifyId" [reloadTick]="reloadTick()" />
               } @else if (state.game()!.current) {
                 <p class="text-muted fst-italic mt-3">Número comodín (sin canción)</p>
               }
@@ -44,7 +56,7 @@ import { LeaderboardComponent } from '../../components/leaderboard/leaderboard.c
               type="button"
               class="btn btn-outline-secondary"
               [disabled]="!state.game()!.current?.track"
-              (click)="replay()"
+              (click)="reloadTick.set(reloadTick() + 1)"
             >
               🔁 Volver a reproducir
             </button>
@@ -59,9 +71,11 @@ import { LeaderboardComponent } from '../../components/leaderboard/leaderboard.c
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-center mb-3">
                 <h2 class="h5 mb-0">Tablero general</h2>
-                <span class="badge text-bg-success fs-6">{{ state.game()!.drawn.length }} / 90</span>
+                <span class="badge text-bg-success fs-6">
+                  {{ state.game()!.drawn.length }} / {{ state.game()!.mapping.length }}
+                </span>
               </div>
-              <app-numbers-board [drawn]="state.game()!.drawn" />
+              <app-numbers-board [drawn]="state.game()!.drawn" [total]="state.game()!.mapping.length" />
             </div>
           </section>
 
@@ -83,16 +97,22 @@ export class JuegoBoardComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
 
   protected readonly drawing = signal(false);
+  protected readonly reloadTick = signal(0);
   protected readonly spectatorLink = signal('');
 
   async ngOnInit(): Promise<void> {
-    const code = this.route.snapshot.paramMap.get('code')!;
-    this.spectatorLink.set(`${window.location.origin}${window.location.pathname}#/ver/${code}`);
+    const code = this.route.snapshot.paramMap.get('code') ?? getActiveGameCode();
     this.state.errorMessage.set(null);
+    if (!code) return;
+
+    this.state.loading.set(true);
+    this.spectatorLink.set(`${window.location.origin}${window.location.pathname}#/ver/${code}`);
     try {
       await this.juego.loadGame(code);
     } catch (error) {
       this.state.errorMessage.set((error as Error).message);
+    } finally {
+      this.state.loading.set(false);
     }
   }
 
@@ -100,13 +120,10 @@ export class JuegoBoardComponent implements OnInit {
     this.drawing.set(true);
     try {
       await this.juego.drawNext();
+      this.reloadTick.set(0);
     } finally {
       this.drawing.set(false);
     }
-  }
-
-  async replay(): Promise<void> {
-    await this.juego.replayCurrent();
   }
 
   downloadSongList(): void {

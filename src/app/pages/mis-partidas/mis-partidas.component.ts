@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { AdminGameRef } from '../../models/juego.models';
+import { GameSummary } from '../../models/juego.models';
 import { JuegoService } from '../../services/juego.service';
 
-/** Lists every game that exists in Supabase (regardless of who created it) so it can be deleted. */
+/** Lists every game that exists in Supabase so it can be resumed, watched, or deleted. */
 @Component({
-  selector: 'app-juego-admin',
+  selector: 'app-mis-partidas',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink],
   template: `
@@ -18,14 +18,16 @@ import { JuegoService } from '../../services/juego.service';
     } @else if (loading()) {
       <p class="text-muted">Cargando…</p>
     } @else if (games().length === 0) {
-      <p class="text-muted fst-italic">No hay partidas guardadas.</p>
+      <p class="text-muted fst-italic">No hay partidas guardadas todavía. Créalas desde el Generador.</p>
     } @else {
       <ul class="list-group">
         @for (game of games(); track game.code) {
           <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
               <strong>{{ game.name }}</strong>
-              <span class="text-muted small ms-2">código {{ game.code }} · {{ game.drawnCount }} / 90 cantados</span>
+              <span class="text-muted small ms-2">
+                código {{ game.code }} · {{ game.drawnCount }} / {{ game.total }} cantados
+              </span>
             </div>
             <div class="d-flex gap-2">
               <a class="btn btn-sm btn-success" [routerLink]="['/juego', game.code]">▶ Reanudar</a>
@@ -40,10 +42,10 @@ import { JuegoService } from '../../services/juego.service';
     }
   `,
 })
-export class JuegoAdminComponent implements OnInit {
+export class MisPartidasComponent implements OnInit {
   private readonly juego = inject(JuegoService);
 
-  protected readonly games = signal<AdminGameRef[]>([]);
+  protected readonly games = signal<GameSummary[]>([]);
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
 
