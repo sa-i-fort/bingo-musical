@@ -47,3 +47,9 @@ Thumbs.db
 # Actions variable (see .github/workflows/deploy-pages.yml). Copy
 # spotify-client-id.example.ts if you need one for local development.
 src/app/spotify-client-id.ts
+
+# Supabase project config: generated at build time from the SUPABASE_URL /
+# SUPABASE_ANON_KEY GitHub Actions variables (see
+# .github/workflows/deploy-pages.yml). Copy supabase-config.example.ts if you
+# need one for local development.
+src/app/supabase-config.ts

@@ -27,6 +27,10 @@ jobs:
       - name: Set Spotify Client ID
         run: |
           echo "export const SPOTIFY_CLIENT_ID = '${{ vars.SPOTIFY_CLIENT_ID }}';" > src/app/spotify-client-id.ts
+      - name: Set Supabase config
+        run: |
+          echo "export const SUPABASE_URL = '${{ vars.SUPABASE_URL }}';" > src/app/supabase-config.ts
+          echo "export const SUPABASE_ANON_KEY = '${{ vars.SUPABASE_ANON_KEY }}';" >> src/app/supabase-config.ts
       - run: npx ng build --configuration production --base-href /bingo-musical/
       - uses: actions/upload-pages-artifact@v3
         with:

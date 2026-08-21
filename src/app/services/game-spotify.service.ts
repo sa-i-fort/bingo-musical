@@ -1,40 +1,57 @@
 import { Injectable } from '@angular/core';
-import { Song } from '../models/bingo.models';
+import { GameTrack } from '../models/juego.models';
 import { codeChallengeFor, randomState, randomVerifier } from '../utils/pkce.util';
+import { SpotifyImportError } from './spotify-import.service';
 
 const AUTHORIZE_URL = 'https://accounts.spotify.com/authorize';
 const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const API_BASE = 'https://api.spotify.com/v1';
 const PAGE_SIZE = 100;
-const PENDING_LOGIN_KEY = 'bingo-musical:spotify-pkce-pending';
-
-/** Thrown for any Spotify-related failure, with a message safe to show the user. */
-export class SpotifyImportError extends Error {}
+const SCOPE = 'user-modify-playback-state playlist-read-private';
+const TOKEN_KEY = 'bingo-musical:game-spotify-token';
+const PENDING_LOGIN_KEY = 'bingo-musical:game-spotify-pkce-pending';
 
 interface PendingLogin {
   clientId: string;
-  playlistUrl: string;
   verifier: string;
   state: string;
   redirectUri: string;
 }
 
-/** Loads songs from a public Spotify playlist via OAuth PKCE (no client secret, no backend). */
+/**
+ * Spotify OAuth + playback for the "juego" (director) view. Separate from
+ * SpotifyImportService because it needs the `user-modify-playback-state`
+ * scope and persists the token to control playback across draws.
+ * ponytail: no refresh-token handling, matches the original tool — a 401 just
+ * clears the token and asks to reconnect.
+ */
 @Injectable({ providedIn: 'root' })
-export class SpotifyImportService {
-  /** Redirects the browser to Spotify's login/consent page. */
-  async startLogin(clientId: string, playlistUrl: string): Promise<void> {
+export class GameSpotifyService {
+  get accessToken(): string | null {
+    return localStorage.getItem(TOKEN_KEY);
+  }
+
+  get connected(): boolean {
+    return !!this.accessToken;
+  }
+
+  disconnect(): void {
+    localStorage.removeItem(TOKEN_KEY);
+  }
+
+  async startLogin(clientId: string): Promise<void> {
     const verifier = randomVerifier();
     const state = randomState();
     const redirectUri = window.location.origin + window.location.pathname;
 
-    const pending: PendingLogin = { clientId, playlistUrl, verifier, state, redirectUri };
+    const pending: PendingLogin = { clientId, verifier, state, redirectUri };
     sessionStorage.setItem(PENDING_LOGIN_KEY, JSON.stringify(pending));
 
     const params = new URLSearchParams({
       client_id: clientId,
       response_type: 'code',
       redirect_uri: redirectUri,
+      scope: SCOPE,
       code_challenge_method: 'S256',
       code_challenge: await codeChallengeFor(verifier),
       state,
@@ -42,13 +59,13 @@ export class SpotifyImportService {
     window.location.assign(`${AUTHORIZE_URL}?${params.toString()}`);
   }
 
-  /** Completes the login on redirect (`?code=...`); returns imported songs, or null if not a redirect. */
-  async consumeLoginRedirect(): Promise<Song[] | null> {
+  /** Completes the login on redirect (`?code=...`); returns true if this was a redirect. */
+  async consumeLoginRedirect(): Promise<boolean> {
     const url = new URL(window.location.href);
     const code = url.searchParams.get('code');
     const error = url.searchParams.get('error');
     const returnedState = url.searchParams.get('state');
-    if (!code && !error) return null;
+    if (!code && !error) return false;
 
     const raw = sessionStorage.getItem(PENDING_LOGIN_KEY);
     sessionStorage.removeItem(PENDING_LOGIN_KEY);
@@ -63,7 +80,8 @@ export class SpotifyImportService {
     }
 
     const accessToken = await this.exchangeCodeForToken(code!, pending);
-    return this.fetchPlaylistSongs(pending.playlistUrl, accessToken);
+    localStorage.setItem(TOKEN_KEY, accessToken);
+    return true;
   }
 
   private async exchangeCodeForToken(code: string, pending: PendingLogin): Promise<string> {
@@ -85,16 +103,23 @@ export class SpotifyImportService {
     return data.access_token as string;
   }
 
-  private async fetchPlaylistSongs(playlistUrlOrId: string, accessToken: string): Promise<Song[]> {
+  /** Fetches playlist tracks with cover art and playback URI, in playlist order (caller shuffles/numbers them). */
+  async fetchPlaylistTracks(playlistUrlOrId: string): Promise<GameTrack[]> {
+    const accessToken = this.accessToken;
+    if (!accessToken) throw new SpotifyImportError('Conecta primero con Spotify.');
+
     const playlistId = this.extractPlaylistId(playlistUrlOrId);
-    const songs: Song[] = [];
-    const seenIds = new Set<string>();
-    // ponytail: Spotify renamed /tracks -> /items (item.item.name, not item.track.name). If broken again, check with curl.
+    const tracks: GameTrack[] = [];
+    const seenUris = new Set<string>();
     let url: string | null =
-      `${API_BASE}/playlists/${playlistId}/items?limit=${PAGE_SIZE}&fields=next,items(item(id,name,artists(name)))`;
+      `${API_BASE}/playlists/${playlistId}/items?limit=${PAGE_SIZE}&fields=next,items(item(name,uri,artists(name),album(images)))`;
 
     while (url) {
       const response: Response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+      if (response.status === 401) {
+        this.disconnect();
+        throw new SpotifyImportError('El token de Spotify ha caducado. Vuelve a conectar.');
+      }
       if (response.status === 404) {
         throw new SpotifyImportError('Playlist no encontrada. Comprueba que la URL es correcta y que es pública.');
       }
@@ -102,21 +127,41 @@ export class SpotifyImportService {
         throw new SpotifyImportError('No se pudo leer la playlist de Spotify.');
       }
       const page = await response.json();
-      for (const item of page.items ?? []) {
-        const track = item.item;
-        if (!track?.name) continue;
-        if (track.id && seenIds.has(track.id)) continue;
-        if (track.id) seenIds.add(track.id);
-        const artists = (track.artists ?? []).map((a: { name: string }) => a.name).join(', ');
-        songs.push({ number: songs.length + 1, title: artists ? `${track.name} - ${artists}` : track.name });
+      for (const entry of page.items ?? []) {
+        const track = entry.item;
+        if (!track?.name || !track?.uri) continue;
+        if (seenUris.has(track.uri)) continue;
+        seenUris.add(track.uri);
+        tracks.push({
+          name: track.name,
+          artist: (track.artists ?? []).map((a: { name: string }) => a.name).join(', '),
+          uri: track.uri,
+          image: track.album?.images?.[0]?.url ?? '',
+        });
       }
       url = page.next;
     }
 
-    if (songs.length === 0) {
+    if (tracks.length === 0) {
       throw new SpotifyImportError('La playlist no tiene canciones válidas.');
     }
-    return songs;
+    return tracks;
+  }
+
+  /** Starts playback on the user's active Spotify device; falls back to opening the track URI if there is none. */
+  async play(uri: string): Promise<void> {
+    const accessToken = this.accessToken;
+    if (!accessToken) return;
+    try {
+      const response = await fetch(`${API_BASE}/me/player/play`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uris: [uri] }),
+      });
+      if (!response.ok) window.location.href = uri;
+    } catch {
+      window.location.href = uri;
+    }
   }
 
   private extractPlaylistId(input: string): string {
