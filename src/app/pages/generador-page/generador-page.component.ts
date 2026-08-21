@@ -4,6 +4,7 @@ import { BingoStateService } from '../../services/bingo-state.service';
 import { BingoGeneratorService } from '../../services/bingo-generator.service';
 import { BingoValidationService } from '../../services/bingo-validation.service';
 import { PdfGeneratorService } from '../../services/pdf-generator.service';
+import { CsvParserService } from '../../services/csv-parser.service';
 import { JuegoService } from '../../services/juego.service';
 import { JuegoStateService, allSongsPlayable, gameMappingToSongs, getActiveGameCode } from '../../services/juego-state.service';
 import { SPOTIFY_REDIRECT_PARAMS_KEY } from '../../services/spotify-import.service';
@@ -13,7 +14,6 @@ import { SpotifyImporterComponent } from '../../components/spotify-importer/spot
 import { BingoSettingsComponent } from '../../components/bingo-settings/bingo-settings.component';
 import { BingoCardGridComponent } from '../../components/bingo-card-grid/bingo-card-grid.component';
 import { GenerationProgressComponent } from '../../components/generation-progress/generation-progress.component';
-import { PdfSettingsComponent } from '../../components/pdf-settings/pdf-settings.component';
 
 @Component({
   selector: 'app-generador-page',
@@ -25,14 +25,9 @@ import { PdfSettingsComponent } from '../../components/pdf-settings/pdf-settings
     BingoSettingsComponent,
     BingoCardGridComponent,
     GenerationProgressComponent,
-    PdfSettingsComponent,
     RouterLink,
   ],
   template: `
-    <p class="small text-muted mb-3">
-      🔒 Tus datos se procesan localmente en tu navegador. Nada se sube a ningún servidor propio.
-    </p>
-
     @if (juegoState.game(); as game) {
       <section class="card shadow-sm mb-3 border-success">
         <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -98,6 +93,16 @@ import { PdfSettingsComponent } from '../../components/pdf-settings/pdf-settings
           <div class="card-body">
             <h2 class="h5 card-title">3. Listado de canciones</h2>
             <app-csv-preview />
+            @if (state.songs().length > 0) {
+              <div class="d-flex gap-2 mt-3">
+                <button type="button" class="btn btn-outline-primary" (click)="downloadSongList()">
+                  ⬇ DESCARGAR PDF
+                </button>
+                <button type="button" class="btn btn-outline-secondary" (click)="downloadSpotifyCsv()">
+                  ⬇ DESCARGAR CSV
+                </button>
+              </div>
+            }
           </div>
         </section>
       </div>
@@ -106,19 +111,25 @@ import { PdfSettingsComponent } from '../../components/pdf-settings/pdf-settings
         <section class="card shadow-sm">
           <div class="card-body">
             <h2 class="h5 card-title">4. Generar</h2>
-            @if (validationErrors().length) {
-              <ul class="alert alert-danger mb-3">
-                @for (e of validationErrors(); track $index) {
-                  <li>{{ e }}</li>
-                }
-              </ul>
+            @if (juegoState.game()) {
+              <p class="text-muted mb-0">
+                Esta partida ya está en marcha; los cartones no se pueden regenerar.
+              </p>
+            } @else {
+              @if (validationErrors().length) {
+                <ul class="alert alert-danger mb-3">
+                  @for (e of validationErrors(); track $index) {
+                    <li>{{ e }}</li>
+                  }
+                </ul>
+              }
+              <button type="button" class="btn btn-primary" [disabled]="!canGenerate()" (click)="generate()">
+                {{ state.cards().length ? '↻ REGENERAR CARTONES' : 'GENERAR CARTONES' }}
+              </button>
+              <div class="mt-3">
+                <app-generation-progress />
+              </div>
             }
-            <button type="button" class="btn btn-primary" [disabled]="!canGenerate()" (click)="generate()">
-              {{ state.cards().length ? '↻ REGENERAR CARTONES' : 'GENERAR CARTONES' }}
-            </button>
-            <div class="mt-3">
-              <app-generation-progress />
-            </div>
           </div>
         </section>
       </div>
@@ -128,12 +139,8 @@ import { PdfSettingsComponent } from '../../components/pdf-settings/pdf-settings
           <section class="card shadow-sm">
             <div class="card-body">
               <h2 class="h5 card-title">5. Resultado</h2>
-              <app-pdf-settings />
               <div class="d-flex gap-2 my-3">
                 <button type="button" class="btn btn-success" (click)="downloadPdf()">⬇ DESCARGAR CARTONES</button>
-                <button type="button" class="btn btn-outline-primary" (click)="downloadSongList()">
-                  ⬇ DESCARGAR LISTADO CANCIONES
-                </button>
               </div>
               <app-bingo-card-grid />
             </div>
@@ -153,23 +160,12 @@ import { PdfSettingsComponent } from '../../components/pdf-settings/pdf-settings
                 @if (createError()) {
                   <p class="alert alert-danger">{{ createError() }}</p>
                 }
-                <div class="input-group" style="max-width: 28rem">
-                  <input
-                    type="text"
-                    class="form-control"
-                    placeholder="Nombre de la partida"
-                    [value]="gameName()"
-                    (input)="gameName.set($any($event.target).value)"
-                  />
-                  <button
-                    type="button"
-                    class="btn btn-success"
-                    [disabled]="!gameName().trim() || creatingGame()"
-                    (click)="startGame()"
-                  >
-                    ▶ Crear partida y empezar
-                  </button>
-                </div>
+                <p class="mb-2">
+                  Partida: <strong>{{ state.gameName() }}</strong>
+                </p>
+                <button type="button" class="btn btn-success" [disabled]="creatingGame()" (click)="startGame()">
+                  ▶ Crear partida y empezar
+                </button>
               }
             </div>
           </section>
@@ -184,6 +180,7 @@ export class GeneradorPageComponent implements OnInit {
   private readonly generator = inject(BingoGeneratorService);
   private readonly settingsValidator = inject(BingoValidationService);
   private readonly pdfGenerator = inject(PdfGeneratorService);
+  private readonly csvExporter = inject(CsvParserService);
   private readonly juego = inject(JuegoService);
   private readonly router = inject(Router);
 
@@ -193,12 +190,11 @@ export class GeneradorPageComponent implements OnInit {
   protected readonly source = signal<'csv' | 'spotify'>(this.hasSpotifyRedirect ? 'spotify' : 'csv');
 
   protected readonly validationErrors = computed(
-    () => this.settingsValidator.validate(this.state.settings(), this.state.songs()).errors,
+    () => this.settingsValidator.validate(this.state.settings(), this.state.songs(), this.state.gameName()).errors,
   );
   protected readonly canGenerate = computed(() => this.validationErrors().length === 0 && !this.state.generating());
   protected readonly songsPlayable = computed(() => allSongsPlayable(this.state.songs()));
 
-  protected readonly gameName = signal('');
   protected readonly creatingGame = signal(false);
   protected readonly createError = signal<string | null>(null);
 
@@ -221,6 +217,9 @@ export class GeneradorPageComponent implements OnInit {
     if (this.state.songs().length === 0 && this.juegoState.game()) {
       this.state.songs.set(gameMappingToSongs(this.juegoState.game()!.mapping));
     }
+    if (!this.state.gameName().trim() && this.juegoState.game()) {
+      this.state.gameName.set(this.juegoState.game()!.name);
+    }
   }
 
   async generate(): Promise<void> {
@@ -237,18 +236,22 @@ export class GeneradorPageComponent implements OnInit {
 
   downloadPdf(): void {
     const settings = this.state.settings();
-    this.pdfGenerator.download(this.state.cards(), this.state.pdfSettings(), settings.rows, settings.columns);
+    this.pdfGenerator.download(this.state.cards(), settings.rows, settings.columns, this.state.gameName());
   }
 
   downloadSongList(): void {
-    this.pdfGenerator.downloadSongList(this.state.songs());
+    this.pdfGenerator.downloadSongList(this.state.songs(), this.state.gameName());
+  }
+
+  downloadSpotifyCsv(): void {
+    this.csvExporter.downloadSpotifyCsv(this.state.songs(), this.state.gameName());
   }
 
   async startGame(): Promise<void> {
     this.creatingGame.set(true);
     this.createError.set(null);
     try {
-      const code = await this.juego.createGame(this.gameName().trim(), this.state.songs(), this.state.cards());
+      const code = await this.juego.createGame(this.state.gameName().trim(), this.state.songs(), this.state.cards());
       await this.router.navigate(['/juego', code]);
     } catch (error) {
       this.createError.set((error as Error).message);

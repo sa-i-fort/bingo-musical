@@ -1,5 +1,5 @@
 import { Injectable, signal } from '@angular/core';
-import { BingoCard, BingoSettings, CsvIssue, PdfSettings, Song } from '../models/bingo.models';
+import { BingoCard, BingoSettings, CsvIssue, Song } from '../models/bingo.models';
 
 /** Root-level state holder using signals: single linear flow, no NgRx needed. */
 @Injectable({ providedIn: 'root' })
@@ -14,13 +14,10 @@ export class BingoStateService {
     rows: 3,
     columns: 5,
     numberOfCards: 100,
-    showSongTitles: true,
   });
 
-  readonly pdfSettings = signal<PdfSettings>({
-    format: 'A4',
-    showCardNumber: true,
-  });
+  /** Required — printed on every card header as "NOMBRE - CARTÓN #001" and reused as the live game's name. */
+  readonly gameName = signal('');
 
   readonly cards = signal<BingoCard[]>([]);
   readonly generating = signal(false);

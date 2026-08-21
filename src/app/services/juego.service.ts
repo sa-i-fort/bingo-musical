@@ -17,6 +17,14 @@ export class JuegoService {
     if (!allSongsPlayable(songs)) {
       throw new Error('Todas las canciones deben venir de Spotify (con su track id) para poder jugar en directo.');
     }
+    const { data: existing, error: lookupError } = await this.supabase.client
+      .from('games')
+      .select('code')
+      .ilike('state->>name', name.trim());
+    if (lookupError) throw new Error('No se pudo comprobar si ya existe una partida con ese nombre.');
+    if ((existing ?? []).length > 0) {
+      throw new Error('Ya existe una partida con ese nombre. Elige otro nombre para la partida.');
+    }
     const mapping = buildMapping(songs);
     const pending = mapping.map((m) => m.number);
 
@@ -93,6 +101,22 @@ export class JuegoService {
   async deleteGame(code: string): Promise<void> {
     await this.supabase.client.from('games').delete().eq('code', code);
     if (this.state.game()?.code === code) this.state.game.set(null);
+  }
+
+  /** Resets a game back to its initial state (no songs drawn) without touching its cards. */
+  async resetGame(code: string): Promise<void> {
+    const { data, error } = await this.supabase.client.from('games').select('state').eq('code', code).single();
+    if (error || !data) throw new Error('Partida no encontrada.');
+    const game = (data as { state: GameState }).state;
+    const reset: GameState = {
+      ...game,
+      drawn: [],
+      pending: game.mapping.map((m) => m.number),
+      current: null,
+      playTick: 0,
+    };
+    await this.persist(reset);
+    if (this.state.game()?.code === code) this.state.game.set(reset);
   }
 
   /** Lists every game in Supabase, for the "Mis partidas" screen. */

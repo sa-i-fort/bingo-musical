@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import jsPDF from 'jspdf';
-import { BingoCard, BingoCell, PdfSettings, Song } from '../models/bingo.models';
+import { BingoCard, BingoCell, Song } from '../models/bingo.models';
 import { splitSongTitle } from '../utils/song-title.util';
 
 const PAGE_MM = { portrait: { w: 210, h: 297 }, landscape: { w: 297, h: 210 } };
@@ -22,7 +22,7 @@ const TEXT_MUTED: [number, number, number] = [110, 110, 120];
 
 @Injectable({ providedIn: 'root' })
 export class PdfGeneratorService {
-  download(cards: BingoCard[], settings: PdfSettings, rows: number, columns: number): void {
+  download(cards: BingoCard[], rows: number, columns: number, gameName = ''): void {
     if (cards.length === 0) return;
 
     const layout = this.computeLayout(rows, columns);
@@ -41,13 +41,13 @@ export class PdfGeneratorService {
       const x = MARGIN + col * (layout.cardW + GAP);
       const y = MARGIN + row * (layout.cardH + GAP);
 
-      this.drawCard(doc, card, index, x, y, layout.cellW, layout.cellH, rows, columns, settings, fontSizes);
+      this.drawCard(doc, card, index, x, y, layout.cellW, layout.cellH, rows, columns, fontSizes, gameName);
     });
 
-    doc.save('bingo-musical.pdf');
+    doc.save(gameName.trim() ? `${gameName.trim()} - cartones.pdf` : 'bingo-musical.pdf');
   }
 
-  downloadSongList(songs: Song[]): void {
+  downloadSongList(songs: Song[], gameName = ''): void {
     if (songs.length === 0) return;
     const sorted = [...songs].sort((a, b) => a.number - b.number);
 
@@ -102,7 +102,8 @@ export class PdfGeneratorService {
       }
     }
 
-    doc.save('listado-canciones.pdf');
+    const fileName = gameName.trim() ? `${gameName.trim()} - listado canciones.pdf` : 'listado-canciones.pdf';
+    doc.save(fileName);
   }
 
   private computeLayout(rows: number, columns: number) {
@@ -131,8 +132,8 @@ export class PdfGeneratorService {
     cellH: number,
     rows: number,
     columns: number,
-    settings: PdfSettings,
     fontSizes: { songFontSize: number; artistFontSize: number },
+    gameName: string,
   ): void {
     const cardW = cellW * columns;
     const cardH = cellH * rows;
@@ -145,12 +146,13 @@ export class PdfGeneratorService {
     doc.setLineWidth(0.4);
     doc.rect(x, y, cardW, HEADER_H + cardH, 'S');
 
-    if (settings.showCardNumber) {
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(Math.min(9, HEADER_H * 1.4));
-      doc.setTextColor(...ACCENT);
-      doc.text(`CARTÓN #${String(index + 1).padStart(3, '0')}`, x + 2, y + HEADER_H * 0.7);
-    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(Math.min(9, HEADER_H * 1.4));
+    doc.setTextColor(...ACCENT);
+    const label = gameName.trim()
+      ? `${gameName.trim()} - CARTÓN #${String(index + 1).padStart(3, '0')}`
+      : `CARTÓN #${String(index + 1).padStart(3, '0')}`;
+    doc.text(label, x + 2, y + HEADER_H * 0.7);
 
     doc.setFillColor(255, 255, 255);
     doc.rect(x, gridY, cardW, cardH, 'F');

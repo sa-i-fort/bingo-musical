@@ -35,12 +35,6 @@ export interface BingoSettings {
   rows: number;
   columns: number;
   numberOfCards: number;
-  showSongTitles: boolean;
-}
-
-export interface PdfSettings {
-  format: 'A4';
-  showCardNumber: boolean;
 }
 
 export interface GenerationProgress {

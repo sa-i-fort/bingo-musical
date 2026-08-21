@@ -16,7 +16,7 @@ describe('BingoGeneratorService', () => {
   });
 
   it('generates the requested number of unique cards with no duplicate numbers per card', async () => {
-    const settings: BingoSettings = { totalSongs: 90, rows: 3, columns: 5, numberOfCards: 20, showSongTitles: true };
+    const settings: BingoSettings = { totalSongs: 90, rows: 3, columns: 5, numberOfCards: 20 };
     const result = await service.generate(settings, makeSongs(90));
 
     expect(result.cards.length).toBe(20);
@@ -34,7 +34,7 @@ describe('BingoGeneratorService', () => {
   });
 
   it('sorts each column in ascending numeric order, top to bottom', async () => {
-    const settings: BingoSettings = { totalSongs: 90, rows: 3, columns: 5, numberOfCards: 5, showSongTitles: false };
+    const settings: BingoSettings = { totalSongs: 90, rows: 3, columns: 5, numberOfCards: 5 };
     const result = await service.generate(settings, makeSongs(90));
 
     for (const card of result.cards) {
@@ -48,7 +48,7 @@ describe('BingoGeneratorService', () => {
   });
 
   it('respects column ranges', async () => {
-    const settings: BingoSettings = { totalSongs: 90, rows: 3, columns: 5, numberOfCards: 5, showSongTitles: false };
+    const settings: BingoSettings = { totalSongs: 90, rows: 3, columns: 5, numberOfCards: 5 };
     const result = await service.generate(settings, makeSongs(90));
 
     for (const card of result.cards) {
@@ -66,7 +66,7 @@ describe('BingoGeneratorService', () => {
   it('never loops forever and reports a partial result for impossible configurations', async () => {
     // Only 15 songs but rows=3/columns=5 needs 15 numbers per card and 50 cards requested:
     // duplicate cards become unavoidable quickly, generation must stop gracefully.
-    const settings: BingoSettings = { totalSongs: 15, rows: 3, columns: 5, numberOfCards: 50, showSongTitles: false };
+    const settings: BingoSettings = { totalSongs: 15, rows: 3, columns: 5, numberOfCards: 50 };
     const result = await service.generate(settings, makeSongs(15));
 
     expect(result.cards.length).toBeLessThanOrEqual(50);
@@ -74,7 +74,7 @@ describe('BingoGeneratorService', () => {
   });
 
   it('avoids repeating rows across cards when possible', async () => {
-    const settings: BingoSettings = { totalSongs: 90, rows: 3, columns: 5, numberOfCards: 10, showSongTitles: false };
+    const settings: BingoSettings = { totalSongs: 90, rows: 3, columns: 5, numberOfCards: 10 };
     const result = await service.generate(settings, makeSongs(90));
 
     const seenRows = new Set<string>();

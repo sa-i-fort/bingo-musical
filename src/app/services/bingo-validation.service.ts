@@ -10,9 +10,10 @@ export interface SettingsValidationResult {
 /** Checks whether the current settings + available songs can produce cards at all. */
 @Injectable({ providedIn: 'root' })
 export class BingoValidationService {
-  validate(settings: BingoSettings, songs: Song[]): SettingsValidationResult {
+  validate(settings: BingoSettings, songs: Song[], gameName?: string): SettingsValidationResult {
     const errors: string[] = [];
 
+    if (!gameName?.trim()) errors.push('Debes indicar un nombre para la partida.');
     if (songs.length === 0) errors.push('Debes cargar un CSV con canciones válidas.');
     if (settings.rows <= 0) errors.push('El número de filas debe ser mayor que 0.');
     if (settings.columns <= 0) errors.push('El número de columnas debe ser mayor que 0.');

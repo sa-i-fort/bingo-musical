@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { BingoStateService } from '../../services/bingo-state.service';
 
@@ -8,6 +8,17 @@ import { BingoStateService } from '../../services/bingo-state.service';
   imports: [ReactiveFormsModule],
   template: `
     <form [formGroup]="form" class="row g-3">
+      <div class="col-12">
+        <label for="gameName" class="form-label">Nombre de la partida</label>
+        <input
+          id="gameName"
+          type="text"
+          class="form-control"
+          formControlName="gameName"
+          placeholder="p. ej. Bingo de Nochevieja"
+        />
+      </div>
+
       <div class="col-6 col-sm-4">
         <label for="rows" class="form-label">Filas</label>
         <input id="rows" type="number" min="1" class="form-control" formControlName="rows" />
@@ -22,13 +33,6 @@ import { BingoStateService } from '../../services/bingo-state.service';
         <label for="numberOfCards" class="form-label">Cartones</label>
         <input id="numberOfCards" type="number" min="1" class="form-control" formControlName="numberOfCards" />
       </div>
-
-      <div class="col-12">
-        <div class="form-check">
-          <input id="showSongTitles" type="checkbox" class="form-check-input" formControlName="showSongTitles" />
-          <label for="showSongTitles" class="form-check-label">Mostrar nombres de canciones</label>
-        </div>
-      </div>
     </form>
   `,
 })
@@ -39,20 +43,26 @@ export class BingoSettingsComponent {
 
   // totalSongs is derived from the imported CSV (see CsvUploaderComponent), no field here.
   protected readonly form = this.fb.nonNullable.group({
+    gameName: this.state.gameName(),
     rows: this.state.settings().rows,
     columns: this.state.settings().columns,
     numberOfCards: this.state.settings().numberOfCards,
-    showSongTitles: this.state.settings().showSongTitles,
   });
 
   constructor() {
+    // Reflects gameName being restored asynchronously from a loaded live game (see GeneradorPageComponent.ngOnInit).
+    effect(() => {
+      const name = this.state.gameName();
+      if (name !== this.form.controls.gameName.value) this.form.controls.gameName.setValue(name, { emitEvent: false });
+    });
+
     const sub = this.form.valueChanges.subscribe((value) => {
+      this.state.gameName.set(value.gameName ?? '');
       this.state.settings.update((settings) => ({
         ...settings,
         rows: Number(value.rows) || 0,
         columns: Number(value.columns) || 0,
         numberOfCards: Number(value.numberOfCards) || 0,
-        showSongTitles: !!value.showSongTitles,
       }));
     });
     this.destroyRef.onDestroy(() => sub.unsubscribe());

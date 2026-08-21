@@ -31,6 +31,7 @@ import { JuegoService } from '../../services/juego.service';
             </div>
             <div class="d-flex gap-2">
               <a class="btn btn-sm btn-success" [routerLink]="['/juego', game.code]">▶ Reanudar</a>
+              <button type="button" class="btn btn-sm btn-outline-warning" (click)="reset(game.code)">↺ Reiniciar</button>
               <button type="button" class="btn btn-sm btn-outline-danger" (click)="delete(game.code)">🗑 Borrar</button>
             </div>
           </li>
@@ -53,6 +54,13 @@ export class MisPartidasComponent implements OnInit {
   async delete(code: string): Promise<void> {
     if (!confirm('¿Borrar esta partida y sus cartones permanentemente?')) return;
     await this.juego.deleteGame(code);
+    await this.refresh();
+  }
+
+  async reset(code: string): Promise<void> {
+    if (!confirm('¿Reiniciar esta partida? Se borrarán todas las canciones cantadas, pero se mantendrán los cartones.'))
+      return;
+    await this.juego.resetGame(code);
     await this.refresh();
   }
 

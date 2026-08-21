@@ -4,6 +4,7 @@ import { CsvParseResult, Song } from '../models/bingo.models';
 
 const NUMBER_ALIASES = ['numero', 'número', 'number', 'num', 'no', 'id'];
 const TITLE_ALIASES = ['cancion', 'canción', 'titulo', 'título', 'title', 'song', 'nombre'];
+const SPOTIFY_ID_ALIASES = ['spotifyid', 'spotify_id', 'spotify id', 'trackid', 'track_id', 'track id', 'spotify'];
 
 function normalize(header: string): string {
   return header
@@ -26,6 +27,7 @@ export class CsvParserService {
     const fields = parsed.meta.fields ?? [];
     const detectedNumberCol = numberColumn ?? fields.find((f) => NUMBER_ALIASES.includes(normalize(f))) ?? null;
     const detectedTitleCol = titleColumn ?? fields.find((f) => TITLE_ALIASES.includes(normalize(f))) ?? null;
+    const detectedSpotifyCol = fields.find((f) => SPOTIFY_ID_ALIASES.includes(normalize(f))) ?? null;
 
     const result: CsvParseResult = {
       songs: [],
@@ -78,6 +80,10 @@ export class CsvParserService {
       seenNumbers.add(number);
 
       const song: Song = { number, title: rawTitle };
+      if (detectedSpotifyCol) {
+        const spotifyId = row[detectedSpotifyCol]?.trim();
+        if (spotifyId) song.spotifyId = spotifyId;
+      }
       result.songs.push(song);
     });
 
@@ -87,5 +93,25 @@ export class CsvParserService {
       .sort((a, b) => a.number - b.number)
       .map((s, index) => ({ ...s, number: index + 1 }));
     return result;
+  }
+
+  /** Exports the songs with everything needed to re-import them (and their Spotify track ids) later,
+   * without depending on the playlist link OAuth flow. */
+  downloadSpotifyCsv(songs: readonly Song[], gameName = ''): void {
+    if (songs.length === 0) return;
+    const csv = Papa.unparse(
+      songs.map((s) => ({
+        numero: s.number,
+        cancion: s.title,
+        spotify_id: s.spotifyId ?? '',
+      })),
+    );
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = gameName.trim() ? `${gameName.trim()} - listado canciones.csv` : 'canciones-spotify.csv';
+    a.click();
+    URL.revokeObjectURL(url);
   }
 }
