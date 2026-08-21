@@ -18,6 +18,8 @@ export interface GameState {
   drawn: number[];
   pending: number[];
   current: GameNumber | null;
+  /** Bumped on every draw/replay/manual-next so the Spotify embed reloads (and autoplays) even for a repeated track id. */
+  playTick: number;
 }
 
 /** Row shape for listing every game that exists in Supabase ("Mis partidas" screen). */

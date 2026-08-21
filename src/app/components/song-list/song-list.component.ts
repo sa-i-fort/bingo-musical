@@ -21,8 +21,13 @@ import { GameNumber } from '../../models/juego.models';
               <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
                 <span>{{ m.track ? m.track.name + ' - ' + m.track.artist : 'Comodín' }}</span>
                 @if (interactive() && m.track) {
-                  <button type="button" class="btn btn-sm btn-outline-secondary" (click)="replay.emit(m)">
-                    🔁 Reproducir
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-light border-0"
+                    title="Reproducir de nuevo"
+                    (click)="replay.emit(m)"
+                  >
+                    🔁
                   </button>
                 }
               </li>
@@ -41,8 +46,13 @@ import { GameNumber } from '../../models/juego.models';
               <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
                 <span>{{ m.track ? m.track.name + ' - ' + m.track.artist : 'Comodín' }}</span>
                 @if (interactive()) {
-                  <button type="button" class="btn btn-sm btn-outline-warning" (click)="forceNext.emit(m)">
-                    ⏭ Poner como siguiente
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-light border-0"
+                    title="Poner como siguiente"
+                    (click)="forceNext.emit(m)"
+                  >
+                    ⏭
                   </button>
                 }
               </li>
@@ -62,6 +72,19 @@ export class SongListComponent {
   readonly forceNext = output<GameNumber>();
 
   private readonly drawnSet = computed(() => new Set(this.drawn()));
-  protected readonly played = computed(() => this.mapping().filter((m) => this.drawnSet().has(m.number)));
-  protected readonly pending = computed(() => this.mapping().filter((m) => !this.drawnSet().has(m.number)));
+  // "Ya sonadas": most recent first, following the actual draw order (not song/number order).
+  protected readonly played = computed(() => {
+    const byNumber = new Map(this.mapping().map((m) => [m.number, m]));
+    return this.drawn()
+      .slice()
+      .reverse()
+      .map((number) => byNumber.get(number))
+      .filter((m): m is GameNumber => !!m);
+  });
+  // "Por sonar": alphabetical by song name (comodines, with no track, sort last).
+  protected readonly pending = computed(() =>
+    this.mapping()
+      .filter((m) => !this.drawnSet().has(m.number))
+      .sort((a, b) => (a.track?.name ?? '\uffff').localeCompare(b.track?.name ?? '\uffff')),
+  );
 }

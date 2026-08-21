@@ -13,7 +13,7 @@ const PAGE_SIZE = 20;
       <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-3">
         @for (card of visible(); track card.id; let i = $index) {
           <div class="col">
-            <app-bingo-card [card]="card" [index]="i" [showTitles]="state.settings().showSongTitles" />
+            <app-bingo-card [card]="card" [index]="i" [showTitles]="state.settings().showSongTitles" [showNumbers]="false" />
           </div>
         }
       </div>

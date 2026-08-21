@@ -1,15 +1,12 @@
 import { Injectable } from '@angular/core';
-import { RealtimeChannel } from '@supabase/supabase-js';
 import { BingoCard, Song } from '../models/bingo.models';
 import { GameState, GameSummary } from '../models/juego.models';
 import { SupabaseClientService } from './supabase-client.service';
 import { JuegoStateService, allSongsPlayable, buildMapping, newGameCode, setActiveGameCode } from './juego-state.service';
 
-/** Business logic for the "juego" module: create/draw/persist games, realtime sync for spectators. */
+/** Business logic for the "juego" module: create/draw/persist games (admin-only, no realtime spectator sync). */
 @Injectable({ providedIn: 'root' })
 export class JuegoService {
-  private channel: RealtimeChannel | null = null;
-
   constructor(
     private readonly supabase: SupabaseClientService,
     private readonly state: JuegoStateService,
@@ -26,7 +23,7 @@ export class JuegoService {
     // Retry a couple of times on the (very unlikely) code collision.
     for (let attempt = 0; attempt < 3; attempt++) {
       const code = newGameCode();
-      const game: GameState = { code, name, mapping, drawn: [], pending, current: null };
+      const game: GameState = { code, name, mapping, drawn: [], pending, current: null, playTick: 0 };
       const { error } = await this.supabase.client.from('games').insert({ code, state: game });
       if (!error) {
         await this.attachCards(code, cards);
@@ -46,7 +43,13 @@ export class JuegoService {
       this.supabase.client.from('cards').select('card_id, rows').eq('game_code', code),
     ]);
     if (gameResult.error || !gameResult.data) throw new Error('Partida no encontrada.');
-    this.state.game.set((gameResult.data as { state: GameState }).state);
+    const game = (gameResult.data as { state: GameState }).state;
+    game.playTick ??= 0;
+    // Reload should resume on the most recently drawn song, not blank/whatever `current` was saved as.
+    if (!game.current && game.drawn.length > 0) {
+      game.current = game.mapping.find((m) => m.number === game.drawn[game.drawn.length - 1]) ?? null;
+    }
+    this.state.game.set(game);
     const cardRows = (cardsResult.data ?? []) as { card_id: string; rows: BingoCard['rows'] }[];
     this.state.linkedCards.set(cardRows.map((c) => ({ id: c.card_id, rows: c.rows })));
     setActiveGameCode(code);
@@ -71,7 +74,7 @@ export class JuegoService {
     if (!game) return;
     const current = game.mapping.find((m) => m.number === number) ?? null;
     if (!current) return;
-    const updated: GameState = { ...game, current };
+    const updated: GameState = { ...game, current, playTick: game.playTick + 1 };
     this.state.game.set(updated);
     void this.persist(updated);
   }
@@ -82,7 +85,7 @@ export class JuegoService {
     const pending = game.pending.filter((n) => n !== number);
     const drawn = [...game.drawn, number];
     const current = game.mapping.find((m) => m.number === number) ?? null;
-    const updated: GameState = { ...game, drawn, pending, current };
+    const updated: GameState = { ...game, drawn, pending, current, playTick: game.playTick + 1 };
     this.state.game.set(updated);
     await this.persist(updated);
   }
@@ -109,26 +112,6 @@ export class JuegoService {
         total: gameState.mapping.length,
       };
     });
-  }
-
-  /** Subscribes to live updates for a game (used by the read-only spectator view). */
-  subscribeToUpdates(code: string): void {
-    this.unsubscribe();
-    this.channel = this.supabase.client
-      .channel(`game:${code}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'games', filter: `code=eq.${code}` },
-        (payload) => this.state.game.set((payload.new as { state: GameState }).state),
-      )
-      .subscribe();
-  }
-
-  unsubscribe(): void {
-    if (this.channel) {
-      this.supabase.client.removeChannel(this.channel);
-      this.channel = null;
-    }
   }
 
   private async attachCards(gameCode: string, cards: readonly BingoCard[]): Promise<void> {

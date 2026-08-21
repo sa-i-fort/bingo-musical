@@ -1,11 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { RouterLink, Router } from '@angular/router';
 import { BingoStateService } from '../../services/bingo-state.service';
 import { BingoGeneratorService } from '../../services/bingo-generator.service';
 import { BingoValidationService } from '../../services/bingo-validation.service';
 import { PdfGeneratorService } from '../../services/pdf-generator.service';
 import { JuegoService } from '../../services/juego.service';
-import { allSongsPlayable } from '../../services/juego-state.service';
+import { JuegoStateService, allSongsPlayable, gameMappingToSongs, getActiveGameCode } from '../../services/juego-state.service';
 import { SPOTIFY_REDIRECT_PARAMS_KEY } from '../../services/spotify-import.service';
 import { CsvUploaderComponent } from '../../components/csv-uploader/csv-uploader.component';
 import { CsvPreviewComponent } from '../../components/csv-preview/csv-preview.component';
@@ -26,11 +26,28 @@ import { PdfSettingsComponent } from '../../components/pdf-settings/pdf-settings
     BingoCardGridComponent,
     GenerationProgressComponent,
     PdfSettingsComponent,
+    RouterLink,
   ],
   template: `
     <p class="small text-muted mb-3">
       🔒 Tus datos se procesan localmente en tu navegador. Nada se sube a ningún servidor propio.
     </p>
+
+    @if (juegoState.game(); as game) {
+      <section class="card shadow-sm mb-3 border-success">
+        <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div>
+            <h2 class="h6 text-uppercase text-muted mb-1">Partida en directo cargada</h2>
+            <strong>{{ game.name }}</strong>
+            <span class="text-muted small ms-2">
+              código {{ game.code }} · {{ game.drawn.length }} / {{ game.mapping.length }} cantadas
+            </span>
+          </div>
+          <a class="btn btn-success" [routerLink]="['/juego', game.code]">▶ Ir al juego</a>
+        </div>
+      </section>
+    }
+
     <div class="row g-3">
       <div class="col-12 col-lg-6">
         <section class="card shadow-sm h-100">
@@ -161,8 +178,9 @@ import { PdfSettingsComponent } from '../../components/pdf-settings/pdf-settings
     </div>
   `,
 })
-export class GeneradorPageComponent {
+export class GeneradorPageComponent implements OnInit {
   protected readonly state = inject(BingoStateService);
+  protected readonly juegoState = inject(JuegoStateService);
   private readonly generator = inject(BingoGeneratorService);
   private readonly settingsValidator = inject(BingoValidationService);
   private readonly pdfGenerator = inject(PdfGeneratorService);
@@ -183,6 +201,27 @@ export class GeneradorPageComponent {
   protected readonly gameName = signal('');
   protected readonly creatingGame = signal(false);
   protected readonly createError = signal<string | null>(null);
+
+  async ngOnInit(): Promise<void> {
+    // Show the "live game" banner even if we land here without going through /juego first.
+    const code = getActiveGameCode();
+    if (code && !this.juegoState.game()) {
+      try {
+        await this.juego.loadGame(code);
+      } catch {
+        // No banner if the stored code no longer resolves to a real game — not worth surfacing an error here.
+        return;
+      }
+    }
+    // Cards were regenerated in this browser session already — don't clobber them with the (possibly
+    // reshuffled-numbers-wise identical, but re-fetched) ones from the linked game.
+    if (this.state.cards().length === 0 && this.juegoState.linkedCards().length > 0) {
+      this.state.cards.set(this.juegoState.linkedCards());
+    }
+    if (this.state.songs().length === 0 && this.juegoState.game()) {
+      this.state.songs.set(gameMappingToSongs(this.juegoState.game()!.mapping));
+    }
+  }
 
   async generate(): Promise<void> {
     this.state.generating.set(true);

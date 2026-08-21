@@ -31,9 +31,6 @@ import { JuegoService } from '../../services/juego.service';
             </div>
             <div class="d-flex gap-2">
               <a class="btn btn-sm btn-success" [routerLink]="['/juego', game.code]">▶ Reanudar</a>
-              <a class="btn btn-sm btn-outline-secondary" [routerLink]="['/ver', game.code]" target="_blank">
-                👁 Ver espectador
-              </a>
               <button type="button" class="btn btn-sm btn-outline-danger" (click)="delete(game.code)">🗑 Borrar</button>
             </div>
           </li>

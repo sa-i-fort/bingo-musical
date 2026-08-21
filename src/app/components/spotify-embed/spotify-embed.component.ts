@@ -1,40 +1,89 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, OnDestroy, effect, input, viewChild } from '@angular/core';
+
+/** Minimal shape of the controller Spotify's iFrame API hands back — see loadEntity/play below. */
+interface SpotifyEmbedController {
+  loadUri(uri: string): void;
+  play(): void;
+  addListener(event: 'ready', cb: () => void): void;
+}
+
+interface SpotifyIframeApi {
+  createController(
+    element: HTMLElement,
+    options: { uri: string; width?: string | number; height?: string | number },
+    callback: (controller: SpotifyEmbedController) => void,
+  ): void;
+}
+
+declare global {
+  interface Window {
+    onSpotifyIframeApiReady?: (api: SpotifyIframeApi) => void;
+  }
+}
+
+// ponytail: module-level singleton — the iFrame API script + its onSpotifyIframeApiReady callback
+// are global by Spotify's design (one script tag, one ready callback for the whole page), so this
+// mirrors that instead of pretending it's per-component state.
+let iframeApiScriptLoading: Promise<SpotifyIframeApi> | null = null;
+
+function loadIframeApi() {
+  iframeApiScriptLoading ??= new Promise((resolve) => {
+    window.onSpotifyIframeApiReady = resolve;
+    const script = document.createElement('script');
+    script.src = 'https://open.spotify.com/embed/iframe-api/v1';
+    script.async = true;
+    document.body.appendChild(script);
+  });
+  return iframeApiScriptLoading;
+}
 
 /**
- * Spotify's public embed widget (iframe) — no OAuth/playback scope needed, just a track id.
- * ponytail: browsers generally block iframe autoplay without a user gesture; the "sacar
- * siguiente" click itself is usually enough of one, but there's no guarantee across browsers.
+ * Spotify's iFrame API embed — used (instead of the plain iframe src) because only this API
+ * exposes a `play()` call; the embed's URL has no `autoplay` query param that actually works.
  */
 @Component({
   selector: 'app-spotify-embed',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    @if (embedUrl(); as url) {
-      <iframe
-        [src]="url"
-        width="100%"
-        height="152"
-        style="border-radius: 12px"
-        frameborder="0"
-        allowfullscreen
-        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-        loading="lazy"
-      ></iframe>
-    }
-  `,
+  template: `<div #host></div>`,
 })
-export class SpotifyEmbedComponent {
-  private readonly sanitizer = inject(DomSanitizer);
+export class SpotifyEmbedComponent implements AfterViewInit, OnDestroy {
+  private readonly host = viewChild.required<ElementRef<HTMLElement>>('host');
+  private controller: SpotifyEmbedController | null = null;
+  private viewReady = false;
 
   readonly spotifyId = input<string | null>(null);
-  /** Bump this to force the iframe to reload the track from the start ("volver a reproducir"). */
+  /** Bump this to force the embed to (re)load and autoplay the current track, even on a repeat. */
   readonly reloadTick = input(0);
 
-  protected readonly embedUrl = computed<SafeResourceUrl | null>(() => {
-    const id = this.spotifyId();
-    if (!id) return null;
-    const url = `https://open.spotify.com/embed/track/${id}?utm_source=generator&theme=0&_r=${this.reloadTick()}`;
-    return this.sanitizer.bypassSecurityTrustResourceUrl(url);
-  });
+  constructor() {
+    effect(() => {
+      const id = this.spotifyId();
+      this.reloadTick();
+      if (this.viewReady) void this.loadCurrentTrack(id);
+    });
+  }
+
+  async ngAfterViewInit(): Promise<void> {
+    this.viewReady = true;
+    await this.loadCurrentTrack(this.spotifyId());
+  }
+
+  ngOnDestroy(): void {
+    this.controller = null;
+  }
+
+  private async loadCurrentTrack(id: string | null): Promise<void> {
+    if (!id) return;
+    const uri = `spotify:track:${id}`;
+    if (this.controller) {
+      this.controller.loadUri(uri);
+      this.controller.play();
+      return;
+    }
+    const api = await loadIframeApi();
+    api.createController(this.host().nativeElement, { uri, width: '100%', height: 152 }, (controller) => {
+      this.controller = controller;
+      controller.addListener('ready', () => controller.play());
+    });
+  }
 }

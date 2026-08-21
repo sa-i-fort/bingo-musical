@@ -42,6 +42,17 @@ export function buildMapping(songs: readonly Song[]): GameNumber[] {
   });
 }
 
+/** The inverse of `buildMapping` — reconstructs the songs list from a loaded game, so the
+ * Generador can show/re-download cards and the song list without needing them regenerated locally. */
+export function gameMappingToSongs(mapping: readonly GameNumber[]): Song[] {
+  return mapping.map((m) => ({
+    number: m.number,
+    title: m.track ? `${m.track.name} - ${m.track.artist}` : `Comodín ${m.number}`,
+    spotifyId: m.track?.spotifyId,
+    image: m.track?.image,
+  }));
+}
+
 /** Signal-based state for the "juego" module: the active game and its linked cards (leaderboard). */
 @Injectable({ providedIn: 'root' })
 export class JuegoStateService {

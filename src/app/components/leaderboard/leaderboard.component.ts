@@ -20,20 +20,24 @@ interface LeaderboardRow {
     } @else {
       <ol class="list-group list-group-numbered">
         @for (row of rows(); track row.cardId) {
-          <li class="list-group-item">
-            <button
-              type="button"
-              class="btn btn-link p-0 w-100 d-flex justify-content-between align-items-center text-decoration-none"
-              (click)="toggle(row.cardId)"
-            >
-              <span>Cartón #{{ row.cardId }}</span>
-              <span class="badge text-bg-success rounded-pill">{{ row.hits }} / {{ row.total }}</span>
-            </button>
-            @if (selectedCardId() === row.cardId) {
-              <div class="mt-2" style="max-width: 20rem">
-                <app-bingo-card [card]="row.card" [drawn]="drawn()" />
+          <li class="list-group-item d-flex align-items-start">
+            <div class="flex-grow-1 ms-1">
+              <div class="d-flex align-items-center gap-2">
+                <button
+                  type="button"
+                  class="btn btn-link p-0 text-decoration-none flex-grow-1 text-truncate text-start"
+                  (click)="toggle(row.cardId)"
+                >
+                  Cartón #{{ row.cardId }}
+                </button>
+                <span class="badge text-bg-success rounded-pill flex-shrink-0">{{ row.hits }} / {{ row.total }}</span>
               </div>
-            }
+              @if (selectedCardId() === row.cardId) {
+                <div class="mt-2">
+                  <app-bingo-card [card]="row.card" [drawn]="drawn()" [showNumbers]="false" />
+                </div>
+              }
+            </div>
           </li>
         }
       </ol>
