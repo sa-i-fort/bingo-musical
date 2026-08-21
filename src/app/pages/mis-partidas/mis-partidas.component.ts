@@ -31,7 +31,11 @@ import { JuegoService } from '../../services/juego.service';
             </div>
             <div class="d-flex gap-2">
               <a class="btn btn-sm btn-success" [routerLink]="['/juego', game.code]">▶ Reanudar</a>
-              <button type="button" class="btn btn-sm btn-outline-warning" (click)="reset(game.code)">↺ Reiniciar</button>
+              @if (game.drawnCount > 0) {
+                <button type="button" class="btn btn-sm btn-outline-warning" (click)="reset(game.code)">
+                  ↺ Reiniciar
+                </button>
+              }
               <button type="button" class="btn btn-sm btn-outline-danger" (click)="delete(game.code)">🗑 Borrar</button>
             </div>
           </li>

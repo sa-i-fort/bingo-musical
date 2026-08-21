@@ -5,8 +5,11 @@ import { BingoCardComponent } from '../bingo-card/bingo-card.component';
 interface LeaderboardRow {
   card: BingoCard;
   cardId: string;
+  index: number;
   hits: number;
   total: number;
+  hasLine: boolean;
+  hasBingo: boolean;
 }
 
 /** Ranks the linked cards by how many of their numbers have already been drawn. */
@@ -30,11 +33,16 @@ interface LeaderboardRow {
                 >
                   Cartón #{{ row.cardId }}
                 </button>
+                @if (row.hasBingo) {
+                  <span class="badge text-bg-warning flex-shrink-0">¡BINGO!</span>
+                } @else if (row.hasLine) {
+                  <span class="badge text-bg-info flex-shrink-0">LÍNEA</span>
+                }
                 <span class="badge text-bg-success rounded-pill flex-shrink-0">{{ row.hits }} / {{ row.total }}</span>
               </div>
               @if (selectedCardId() === row.cardId) {
                 <div class="mt-2">
-                  <app-bingo-card [card]="row.card" [drawn]="drawn()" [showNumbers]="false" />
+                  <app-bingo-card [card]="row.card" [index]="row.index" [drawn]="drawn()" [showNumbers]="false" />
                 </div>
               }
             </div>
@@ -56,7 +64,10 @@ export class LeaderboardComponent {
       .map((card) => {
         const cells = card.rows.flat();
         const hits = cells.filter((cell) => drawnSet.has(cell.number)).length;
-        return { card, cardId: card.id.replace(/^card-/, ''), hits, total: cells.length };
+        const hasLine = card.rows.some((row) => row.every((cell) => drawnSet.has(cell.number)));
+        const hasBingo = hits === cells.length;
+        const cardId = card.id.replace(/^card-/, '');
+        return { card, cardId, index: Number(cardId) - 1, hits, total: cells.length, hasLine, hasBingo };
       })
       .sort((a, b) => b.hits - a.hits);
   });

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { JuegoService } from '../../services/juego.service';
 import { JuegoStateService, getActiveGameCode } from '../../services/juego-state.service';
@@ -49,6 +49,11 @@ import { SpotifyEmbedComponent } from '../../components/spotify-embed/spotify-em
             <button type="button" class="btn btn-success btn-lg" [disabled]="drawing()" (click)="draw()">
               🎲 Sacar siguiente
             </button>
+            @if (state.game()!.current) {
+              <p class="text-muted small text-center mb-0">
+                {{ matchingCardsCount() }} cartón(es) tenían esta canción
+              </p>
+            }
           </div>
         </div>
 
@@ -104,6 +109,11 @@ export class JuegoBoardComponent implements OnInit {
   protected readonly drawing = signal(false);
   protected readonly songsOpen = signal(true);
   protected readonly leaderboardOpen = signal(true);
+  protected readonly matchingCardsCount = computed(() => {
+    const number = this.state.game()?.current?.number;
+    if (number === undefined) return 0;
+    return this.state.linkedCards().filter((card) => card.rows.flat().some((cell) => cell.number === number)).length;
+  });
 
   async ngOnInit(): Promise<void> {
     const code = this.route.snapshot.paramMap.get('code') ?? getActiveGameCode();
