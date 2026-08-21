@@ -34,7 +34,14 @@ import { BingoStateService } from '../../services/bingo-state.service';
               >
                 <td class="text-muted" style="cursor: grab;">⠿</td>
                 <td>{{ song.number }}</td>
-                <td>{{ song.title }}</td>
+                <td>
+                  <input
+                    type="text"
+                    class="form-control form-control-sm"
+                    [value]="song.title"
+                    (change)="rename(song.number, $any($event.target).value)"
+                  />
+                </td>
                 <td>
                   <button
                     type="button"
@@ -85,6 +92,13 @@ export class CsvPreviewComponent {
 
     this.state.songs.set(remaining);
     this.state.settings.update((settings) => ({ ...settings, totalSongs: remaining.length }));
+    this.state.cards.set([]);
+  }
+
+  rename(number: number, title: string): void {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    this.state.songs.update((songs) => songs.map((s) => (s.number === number ? { ...s, title: trimmed } : s)));
     this.state.cards.set([]);
   }
 }

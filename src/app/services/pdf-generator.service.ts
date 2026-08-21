@@ -7,8 +7,8 @@ const PAGE_MM = { portrait: { w: 210, h: 297 }, landscape: { w: 297, h: 210 } };
 const MARGIN = 10;
 const GAP = 4;
 const HEADER_H = 5;
-const CARDS_PER_ROW = 3;
-const CARDS_PER_COL = 3;
+const CARDS_PER_ROW = 2;
+const CARDS_PER_COL = 2;
 const MM_PER_PT = 25.4 / 72; // jsPDF setFontSize takes points; doc unit here is mm.
 const LINE_HEIGHT = 1.15;
 
@@ -30,7 +30,7 @@ export class PdfGeneratorService {
     const cardsPerPage = CARDS_PER_ROW * CARDS_PER_COL;
 
     const allCells = cards.flatMap((card) => card.rows.flat());
-    const fontSizes = this.fitGlobalFontSize(doc, allCells, layout.cellW - 2, layout.cellH - 1.5);
+    const fontSizes = this.fitGlobalFontSize(doc, allCells, layout.cellW - 1, layout.cellH - 0.5);
 
     cards.forEach((card, index) => {
       const posInPage = index % cardsPerPage;
@@ -222,11 +222,11 @@ export class PdfGeneratorService {
     maxWidthMm: number,
     maxHeightMm: number,
   ): { songFontSize: number; artistFontSize: number } {
-    const ARTIST_RATIO = 0.72;
-    const MAX_LINES = 3;
+    const ARTIST_RATIO = 0.85;
+    const MAX_LINES = 4;
     const parsed = cells.map((cell) => splitSongTitle(cell.title));
 
-    for (let fontSize = 32; fontSize >= 6; fontSize -= 0.5) {
+    for (let fontSize = 60; fontSize >= 6; fontSize -= 0.5) {
       const artistFontSize = fontSize * ARTIST_RATIO;
       const fits = parsed.every(([song, artist]) => {
         doc.setFont('times', 'bold');

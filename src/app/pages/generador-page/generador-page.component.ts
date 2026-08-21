@@ -111,10 +111,13 @@ import { GenerationProgressComponent } from '../../components/generation-progres
         <section class="card shadow-sm">
           <div class="card-body">
             <h2 class="h5 card-title">4. Generar</h2>
-            @if (juegoState.game()) {
-              <p class="text-muted mb-0">
+            @if (juegoState.game() && !allowRegenerateWithGame()) {
+              <p class="text-muted mb-2">
                 Esta partida ya está en marcha; los cartones no se pueden regenerar.
               </p>
+              <button type="button" class="btn btn-outline-warning btn-sm" (click)="allowRegenerateWithGame.set(true)">
+                Regenerar de todas formas (reiniciaré la partida manualmente)
+              </button>
             } @else {
               @if (validationErrors().length) {
                 <ul class="alert alert-danger mb-3">
@@ -188,6 +191,7 @@ export class GeneradorPageComponent implements OnInit {
   // (main.ts already moved the real query string into sessionStorage before the Router could drop it.)
   private readonly hasSpotifyRedirect = !!sessionStorage.getItem(SPOTIFY_REDIRECT_PARAMS_KEY);
   protected readonly source = signal<'csv' | 'spotify'>(this.hasSpotifyRedirect ? 'spotify' : 'csv');
+  protected readonly allowRegenerateWithGame = signal(false);
 
   protected readonly validationErrors = computed(
     () => this.settingsValidator.validate(this.state.settings(), this.state.songs(), this.state.gameName()).errors,
