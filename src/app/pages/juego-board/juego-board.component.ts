@@ -3,14 +3,15 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { JuegoService } from '../../services/juego.service';
 import { JuegoStateService, getActiveGameCode } from '../../services/juego-state.service';
 import { PdfGeneratorService } from '../../services/pdf-generator.service';
-import { NumbersBoardComponent } from '../../components/numbers-board/numbers-board.component';
+import { GameNumber } from '../../models/juego.models';
+import { SongListComponent } from '../../components/song-list/song-list.component';
 import { LeaderboardComponent } from '../../components/leaderboard/leaderboard.component';
 import { SpotifyEmbedComponent } from '../../components/spotify-embed/spotify-embed.component';
 
 @Component({
   selector: 'app-juego-board',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NumbersBoardComponent, LeaderboardComponent, SpotifyEmbedComponent, RouterLink],
+  imports: [SongListComponent, LeaderboardComponent, SpotifyEmbedComponent, RouterLink],
   template: `
     @if (state.errorMessage()) {
       <p class="alert alert-danger">{{ state.errorMessage() }}</p>
@@ -36,14 +37,15 @@ import { SpotifyEmbedComponent } from '../../components/spotify-embed/spotify-em
         <div class="col-12 col-lg-4">
           <section class="card shadow-sm text-center">
             <div class="card-body">
-              <h2 class="h6 text-uppercase text-muted">Número actual</h2>
-              <div class="display-1 fw-bold text-success">{{ state.game()!.current?.number ?? '-' }}</div>
+              <h2 class="h6 text-uppercase text-muted">Sonando ahora</h2>
               @if (state.game()!.current?.track; as track) {
                 <p class="fw-bold mb-1">{{ track.name }}</p>
                 <p class="text-muted small mb-2">{{ track.artist }}</p>
                 <app-spotify-embed [spotifyId]="track.spotifyId" [reloadTick]="reloadTick()" />
               } @else if (state.game()!.current) {
                 <p class="text-muted fst-italic mt-3">Número comodín (sin canción)</p>
+              } @else {
+                <p class="text-muted fst-italic mt-3">Todavía no ha empezado a sonar nada.</p>
               }
             </div>
           </section>
@@ -51,14 +53,6 @@ import { SpotifyEmbedComponent } from '../../components/spotify-embed/spotify-em
           <div class="d-grid gap-2 mt-3">
             <button type="button" class="btn btn-success btn-lg" [disabled]="drawing()" (click)="draw()">
               🎲 Sacar siguiente
-            </button>
-            <button
-              type="button"
-              class="btn btn-outline-secondary"
-              [disabled]="!state.game()!.current?.track"
-              (click)="reloadTick.set(reloadTick() + 1)"
-            >
-              🔁 Volver a reproducir
             </button>
             <button type="button" class="btn btn-outline-primary" (click)="downloadSongList()">
               ⬇ Descargar listado de canciones
@@ -70,12 +64,18 @@ import { SpotifyEmbedComponent } from '../../components/spotify-embed/spotify-em
           <section class="card shadow-sm mb-3">
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-center mb-3">
-                <h2 class="h5 mb-0">Tablero general</h2>
+                <h2 class="h5 mb-0">Canciones</h2>
                 <span class="badge text-bg-success fs-6">
                   {{ state.game()!.drawn.length }} / {{ state.game()!.mapping.length }}
                 </span>
               </div>
-              <app-numbers-board [drawn]="state.game()!.drawn" [total]="state.game()!.mapping.length" />
+              <app-song-list
+                [mapping]="state.game()!.mapping"
+                [drawn]="state.game()!.drawn"
+                [interactive]="true"
+                (replay)="replaySong($event)"
+                (forceNext)="confirmForceNext($event)"
+              />
             </div>
           </section>
 
@@ -124,6 +124,20 @@ export class JuegoBoardComponent implements OnInit {
     } finally {
       this.drawing.set(false);
     }
+  }
+
+  replaySong(song: GameNumber): void {
+    this.juego.replay(song.number);
+    this.reloadTick.set(0);
+  }
+
+  async confirmForceNext(song: GameNumber): Promise<void> {
+    const label = song.track ? `${song.track.name} - ${song.track.artist}` : 'este comodín';
+    if (!confirm(`¿Poner "${label}" como siguiente, saltándote el orden aleatorio? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    await this.juego.drawSpecific(song.number);
+    this.reloadTick.set(0);
   }
 
   downloadSongList(): void {

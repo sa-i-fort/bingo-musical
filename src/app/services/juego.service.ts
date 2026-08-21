@@ -56,8 +56,30 @@ export class JuegoService {
     const game = this.state.game();
     if (!game || game.pending.length === 0) return;
     const index = Math.floor(Math.random() * game.pending.length);
-    const number = game.pending[index];
-    const pending = game.pending.filter((_, i) => i !== index);
+    await this.drawNumber(game.pending[index]);
+  }
+
+  /** Manually draws a specific song out of order — an escape hatch for mistakes, gated by a
+   * confirmation dialog in the UI since it skips the random draw. */
+  async drawSpecific(number: number): Promise<void> {
+    await this.drawNumber(number);
+  }
+
+  /** Replays an already-drawn song without affecting `drawn`/`pending`. */
+  replay(number: number): void {
+    const game = this.state.game();
+    if (!game) return;
+    const current = game.mapping.find((m) => m.number === number) ?? null;
+    if (!current) return;
+    const updated: GameState = { ...game, current };
+    this.state.game.set(updated);
+    void this.persist(updated);
+  }
+
+  private async drawNumber(number: number): Promise<void> {
+    const game = this.state.game();
+    if (!game) return;
+    const pending = game.pending.filter((n) => n !== number);
     const drawn = [...game.drawn, number];
     const current = game.mapping.find((m) => m.number === number) ?? null;
     const updated: GameState = { ...game, drawn, pending, current };

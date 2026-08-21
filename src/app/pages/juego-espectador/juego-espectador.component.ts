@@ -2,14 +2,14 @@ import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, inject } from '@
 import { ActivatedRoute } from '@angular/router';
 import { JuegoService } from '../../services/juego.service';
 import { JuegoStateService } from '../../services/juego-state.service';
-import { NumbersBoardComponent } from '../../components/numbers-board/numbers-board.component';
+import { SongListComponent } from '../../components/song-list/song-list.component';
 import { LeaderboardComponent } from '../../components/leaderboard/leaderboard.component';
 import { SpotifyEmbedComponent } from '../../components/spotify-embed/spotify-embed.component';
 
 @Component({
   selector: 'app-juego-espectador',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NumbersBoardComponent, LeaderboardComponent, SpotifyEmbedComponent],
+  imports: [SongListComponent, LeaderboardComponent, SpotifyEmbedComponent],
   template: `
     @if (state.errorMessage()) {
       <p class="alert alert-danger">{{ state.errorMessage() }}</p>
@@ -20,8 +20,7 @@ import { SpotifyEmbedComponent } from '../../components/spotify-embed/spotify-em
         <div class="col-12 col-lg-4">
           <section class="card shadow-sm text-center">
             <div class="card-body">
-              <h2 class="h6 text-uppercase text-muted">Número actual</h2>
-              <div class="display-1 fw-bold text-success">{{ state.game()!.current?.number ?? '-' }}</div>
+              <h2 class="h6 text-uppercase text-muted">Sonando ahora</h2>
               @if (state.game()!.current?.track; as track) {
                 <p class="fw-bold mb-1">{{ track.name }}</p>
                 <p class="text-muted small mb-2">{{ track.artist }}</p>
@@ -39,12 +38,12 @@ import { SpotifyEmbedComponent } from '../../components/spotify-embed/spotify-em
           <section class="card shadow-sm mb-3">
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-center mb-3">
-                <h2 class="h5 mb-0">Tablero general</h2>
+                <h2 class="h5 mb-0">Canciones</h2>
                 <span class="badge text-bg-success fs-6">
                   {{ state.game()!.drawn.length }} / {{ state.game()!.mapping.length }}
                 </span>
               </div>
-              <app-numbers-board [drawn]="state.game()!.drawn" [total]="state.game()!.mapping.length" />
+              <app-song-list [mapping]="state.game()!.mapping" [drawn]="state.game()!.drawn" />
             </div>
           </section>
 

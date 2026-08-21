@@ -13,7 +13,7 @@ import { BingoCard } from '../../models/bingo.models';
             @for (row of card().rows; track $index) {
               <tr>
                 @for (cell of row; track cell.number) {
-                  <td>
+                  <td [class.table-success]="drawnSet().has(cell.number)">
                     <span class="fw-bold d-block">{{ cell.number }}</span>
                     @if (showTitles()) {
                       <span class="d-block text-muted" style="font-size: 0.65rem;">{{ cell.title }}</span>
@@ -32,5 +32,8 @@ export class BingoCardComponent {
   readonly card = input.required<BingoCard>();
   readonly index = input(0);
   readonly showTitles = input(true);
+  /** Numbers already drawn in the live game, if any — highlights matching cells. */
+  readonly drawn = input<number[]>([]);
   protected readonly label = computed(() => String(this.index() + 1).padStart(3, '0'));
+  protected readonly drawnSet = computed(() => new Set(this.drawn()));
 }
