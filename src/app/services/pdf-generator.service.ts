@@ -5,7 +5,7 @@ import { splitSongTitle } from '../utils/song-title.util';
 
 const PAGE_MM = { portrait: { w: 210, h: 297 }, landscape: { w: 297, h: 210 } };
 const MARGIN = 10;
-const GAP = 4;
+const GAP = 0;
 const HEADER_H = 5;
 const CARDS_PER_ROW = 2;
 const CARDS_PER_COL = 2;
