@@ -22,6 +22,10 @@ export function setActiveGameCode(code: string): void {
   localStorage.setItem(ACTIVE_GAME_KEY, code);
 }
 
+export function clearActiveGameCode(): void {
+  localStorage.removeItem(ACTIVE_GAME_KEY);
+}
+
 /** Every song must come from Spotify (needs a track id) to be playable in the embedded player. */
 export function allSongsPlayable(songs: readonly Song[]): boolean {
   return songs.length > 0 && songs.every((s) => !!s.spotifyId);

@@ -6,7 +6,13 @@ import { BingoValidationService } from '../../services/bingo-validation.service'
 import { PdfGeneratorService } from '../../services/pdf-generator.service';
 import { CsvParserService } from '../../services/csv-parser.service';
 import { JuegoService } from '../../services/juego.service';
-import { JuegoStateService, allSongsPlayable, gameMappingToSongs, getActiveGameCode } from '../../services/juego-state.service';
+import {
+  JuegoStateService,
+  allSongsPlayable,
+  clearActiveGameCode,
+  gameMappingToSongs,
+  getActiveGameCode,
+} from '../../services/juego-state.service';
 import { SPOTIFY_REDIRECT_PARAMS_KEY } from '../../services/spotify-import.service';
 import { CsvUploaderComponent } from '../../components/csv-uploader/csv-uploader.component';
 import { CsvPreviewComponent } from '../../components/csv-preview/csv-preview.component';
@@ -38,7 +44,12 @@ import { GenerationProgressComponent } from '../../components/generation-progres
               código {{ game.code }} · {{ game.drawn.length }} / {{ game.mapping.length }} cantadas
             </span>
           </div>
-          <a class="btn btn-success" [routerLink]="['/juego', game.code]">▶ Ir al juego</a>
+          <div class="d-flex gap-2">
+            <a class="btn btn-success" [routerLink]="['/juego', game.code]">▶ Ir al juego</a>
+            <button type="button" class="btn btn-outline-secondary" (click)="clearActiveGame()">
+              Limpiar
+            </button>
+          </div>
         </div>
       </section>
     }
@@ -262,5 +273,14 @@ export class GeneradorPageComponent implements OnInit {
     } finally {
       this.creatingGame.set(false);
     }
+  }
+
+  protected clearActiveGame(): void {
+    clearActiveGameCode();
+    this.juegoState.game.set(null);
+    this.juegoState.linkedCards.set([]);
+    this.state.cards.set([]);
+    this.allowRegenerateWithGame.set(false);
+    this.createError.set(null);
   }
 }
