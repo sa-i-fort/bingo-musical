@@ -1,4 +1,10 @@
-import { buildMapping, allSongsPlayable } from './juego-state.service';
+import {
+  buildMapping,
+  allSongsPlayable,
+  clearActiveGameCode,
+  getActiveGameCode,
+  setActiveGameCode,
+} from './juego-state.service';
 import { Song } from '../models/bingo.models';
 
 function song(number: number, spotifyId?: string): Song {
@@ -29,5 +35,15 @@ describe('allSongsPlayable', () => {
     expect(allSongsPlayable([song(1, 'a'), song(2, 'b')])).toBe(true);
     expect(allSongsPlayable([song(1, 'a'), song(2, undefined)])).toBe(false);
     expect(allSongsPlayable([])).toBe(false);
+  });
+});
+
+describe('active game code cache', () => {
+  it('clears the active game code from local storage', () => {
+    setActiveGameCode('ABCDE');
+
+    clearActiveGameCode();
+
+    expect(getActiveGameCode()).toBeNull();
   });
 });
